@@ -171,6 +171,16 @@ form.addEventListener('submit', async function(event) {
   const medName = nameInput.value;
   const medDosage = dosageInput.value;
 
+  // NEW: check for duplicates first
+  const alreadyExists = medications.some(
+    med => med.name.toLowerCase() === medName.toLowerCase()
+  );
+
+  if (alreadyExists) {
+    showDuplicateError(medName);
+    return; // stop here, don't even check interactions
+  }
+
   const existingNames = medications.map(med => med.name);
   const warnings = await checkInteractions(medName, existingNames);
 
@@ -180,6 +190,27 @@ form.addEventListener('submit', async function(event) {
     addMedication(medName, medDosage);
   }
 });
+
+// NEW: shows an error message when trying to add a duplicate
+function showDuplicateError(medName) {
+  warningBox.innerHTML = '';
+  warningBox.classList.remove('hidden');
+
+  const message = document.createElement('div');
+  message.textContent = `You've already added ${medName}. You can edit the existing entry instead.`;
+  warningBox.appendChild(message);
+
+  const actions = document.createElement('div');
+  actions.className = 'warning-actions';
+
+  const okBtn = document.createElement('button');
+  okBtn.textContent = 'OK';
+  okBtn.className = 'cancel-btn';
+  okBtn.addEventListener('click', hideWarning);
+
+  actions.appendChild(okBtn);
+  warningBox.appendChild(actions);
+}
 
 // Displays the styled warning box with Confirm/Cancel buttons
 function showWarning(warnings, medName, medDosage) {
