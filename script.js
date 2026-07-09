@@ -12,15 +12,13 @@ function getToday() {
   return new Date().toISOString().split('T')[0];
 }
 
-
-// Checks for interactions between a list of rxcui IDs
 // Fetches the FDA label text for a given drug name, returns the 
 // "drug_interactions" section if it exists
 async function getInteractionText(drugName) {
   const url = `https://api.fda.gov/drug/label.json?search=openfda.generic_name:"${encodeURIComponent(drugName)}"&limit=1`;
   const response = await fetch(url);
 
-  if (!response.ok) return null; // drug not found in FDA database
+  if (!response.ok) return null;
 
   const data = await response.json();
   const result = data.results[0];
@@ -33,10 +31,8 @@ async function checkInteractions(newDrugName, existingDrugNames) {
   const warnings = [];
 
   const newDrugInteractionText = await getInteractionText(newDrugName);
-  if (!newDrugInteractionText) return warnings; // no data available, skip silently
+  if (!newDrugInteractionText) return warnings;
 
-  // For each existing medication, check if its name is MENTIONED in the 
-  // new drug's interaction text — a simple but honest way to flag possible overlap
   existingDrugNames.forEach(existingName => {
     const mentioned = newDrugInteractionText.toLowerCase().includes(existingName.toLowerCase());
     if (mentioned) {
@@ -46,31 +42,95 @@ async function checkInteractions(newDrugName, existingDrugNames) {
 
   return warnings;
 }
+
 // Renders the full list on screen based on the 'medications' array
 function renderList() {
-  medList.innerHTML = ''; // clear the current list on screen
+  medList.innerHTML = '';
 
   medications.forEach(function(med, index) {
     const listItem = document.createElement('li');
 
-    // Basic info text
-    const infoText = document.createElement('span');
-    infoText.textContent = `${med.name} — ${med.dosage} | Streak: ${med.streak} 🔥`;
+    if (med.editing) {
+      // EDIT MODE: show input fields instead of plain text
+      const nameEditInput = document.createElement('input');
+      nameEditInput.type = 'text';
+      nameEditInput.value = med.name;
 
-    // "Taken today" button
-    const takenBtn = document.createElement('button');
-    const takenToday = med.lastTaken === getToday();
-    takenBtn.textContent = takenToday ? 'Taken ✅' : 'Mark as taken';
-    takenBtn.disabled = takenToday; // prevent double-clicking same day
+      const dosageEditInput = document.createElement('input');
+      dosageEditInput.type = 'text';
+      dosageEditInput.value = med.dosage;
 
-    takenBtn.addEventListener('click', function() {
-      markAsTaken(index);
-    });
+      const saveBtn = document.createElement('button');
+      saveBtn.textContent = 'Save';
+      saveBtn.addEventListener('click', function() {
+        saveEdit(index, nameEditInput.value, dosageEditInput.value);
+      });
 
-    listItem.appendChild(infoText);
-    listItem.appendChild(takenBtn);
+      listItem.appendChild(nameEditInput);
+      listItem.appendChild(dosageEditInput);
+      listItem.appendChild(saveBtn);
+
+    } else {
+      // NORMAL MODE: show plain text + buttons
+      const infoText = document.createElement('span');
+      infoText.textContent = `${med.name} — ${med.dosage} | Streak: ${med.streak} 🔥`;
+
+      const takenBtn = document.createElement('button');
+      const takenToday = med.lastTaken === getToday();
+      takenBtn.textContent = takenToday ? 'Taken ✅' : 'Mark as taken';
+      takenBtn.disabled = takenToday;
+      takenBtn.addEventListener('click', function() {
+        markAsTaken(index);
+      });
+
+      const editBtn = document.createElement('button');
+      editBtn.textContent = '✏️';
+      editBtn.title = 'Edit this medication';
+      editBtn.addEventListener('click', function() {
+        toggleEdit(index);
+      });
+
+      const deleteBtn = document.createElement('button');
+      deleteBtn.textContent = '🗑️';
+      deleteBtn.title = 'Delete this medication';
+      deleteBtn.addEventListener('click', function() {
+        deleteMedication(index);
+      });
+
+      listItem.appendChild(infoText);
+      listItem.appendChild(takenBtn);
+      listItem.appendChild(editBtn);
+      listItem.appendChild(deleteBtn);
+    }
+
     medList.appendChild(listItem);
   });
+}
+
+// Switches a medication into "editing" mode
+function toggleEdit(index) {
+  medications[index].editing = true;
+  renderList();
+}
+
+// Saves the edited name/dosage and exits editing mode
+function saveEdit(index, newName, newDosage) {
+  medications[index].name = newName;
+  medications[index].dosage = newDosage;
+  medications[index].editing = false;
+
+  saveToStorage();
+  renderList();
+}
+
+// Removes a medication by its index
+function deleteMedication(index) {
+  const confirmed = confirm(`Remove ${medications[index].name} from your list?`);
+  if (!confirmed) return;
+
+  medications.splice(index, 1);
+  saveToStorage();
+  renderList();
 }
 
 // Marks a specific medication (by its index in the array) as taken today
@@ -78,17 +138,16 @@ function markAsTaken(index) {
   const med = medications[index];
   const today = getToday();
 
-  if (med.lastTaken === today) return; // already marked today, do nothing
+  if (med.lastTaken === today) return;
 
-  // Check if yesterday was the last taken day, to decide if streak continues
   const yesterday = new Date();
   yesterday.setDate(yesterday.getDate() - 1);
   const yesterdayStr = yesterday.toISOString().split('T')[0];
 
   if (med.lastTaken === yesterdayStr) {
-    med.streak += 1; // continued streak
+    med.streak += 1;
   } else {
-    med.streak = 1; // streak was broken, restart at 1
+    med.streak = 1;
   }
 
   med.lastTaken = today;
@@ -101,6 +160,7 @@ function markAsTaken(index) {
 function saveToStorage() {
   localStorage.setItem('medications', JSON.stringify(medications));
 }
+
 // Handle form submission (adding a new medication)
 form.addEventListener('submit', async function(event) {
   event.preventDefault();
@@ -108,20 +168,17 @@ form.addEventListener('submit', async function(event) {
   const medName = nameInput.value;
   const medDosage = dosageInput.value;
 
-  // Get names of medications already in the list
   const existingNames = medications.map(med => med.name);
 
-  // Check for interactions BEFORE adding the new one
   const warnings = await checkInteractions(medName, existingNames);
 
   if (warnings.length > 0) {
     const proceed = confirm(
       warnings.join('\n') + '\n\nDo you still want to add this medication?'
     );
-    if (!proceed) return; // user cancelled, stop here
+    if (!proceed) return;
   }
 
-  // Add the new medication as an object, including streak tracking fields
   medications.push({
     name: medName,
     dosage: medDosage,
@@ -135,7 +192,6 @@ form.addEventListener('submit', async function(event) {
   nameInput.value = '';
   dosageInput.value = '';
 });
-
 
 // Render whatever was already saved, as soon as the page loads
 renderList();
