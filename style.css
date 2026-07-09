@@ -99,3 +99,43 @@ h1 {
   background-color: #34c759;
   cursor: not-allowed;
 }
+/* Warning box for drug interactions */
+#warning-box {
+  background-color: #fff4e5;
+  border: 1px solid #ffb020;
+  color: #7a4a00;
+  padding: 14px 16px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+#warning-box.hidden {
+  display: none;
+}
+
+#warning-box .warning-actions {
+  margin-top: 10px;
+  display: flex;
+  gap: 8px;
+}
+
+#warning-box button {
+  padding: 6px 12px;
+  font-size: 13px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+#warning-box .confirm-btn {
+  background-color: #ffb020;
+  color: white;
+}
+
+#warning-box .cancel-btn {
+  background-color: #e5e5e5;
+  color: #333;
+}

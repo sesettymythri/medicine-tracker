@@ -162,6 +162,9 @@ function saveToStorage() {
 }
 
 // Handle form submission (adding a new medication)
+const warningBox = document.getElementById('warning-box');
+
+// Handle form submission (adding a new medication)
 form.addEventListener('submit', async function(event) {
   event.preventDefault();
 
@@ -169,16 +172,52 @@ form.addEventListener('submit', async function(event) {
   const medDosage = dosageInput.value;
 
   const existingNames = medications.map(med => med.name);
-
   const warnings = await checkInteractions(medName, existingNames);
 
   if (warnings.length > 0) {
-    const proceed = confirm(
-      warnings.join('\n') + '\n\nDo you still want to add this medication?'
-    );
-    if (!proceed) return;
+    showWarning(warnings, medName, medDosage);
+  } else {
+    addMedication(medName, medDosage);
   }
+});
 
+// Displays the styled warning box with Confirm/Cancel buttons
+function showWarning(warnings, medName, medDosage) {
+  warningBox.innerHTML = ''; // clear any previous warning
+  warningBox.classList.remove('hidden');
+
+  const message = document.createElement('div');
+  message.textContent = warnings.join(' ');
+  warningBox.appendChild(message);
+
+  const actions = document.createElement('div');
+  actions.className = 'warning-actions';
+
+  const confirmBtn = document.createElement('button');
+  confirmBtn.textContent = 'Add anyway';
+  confirmBtn.className = 'confirm-btn';
+  confirmBtn.addEventListener('click', function() {
+    addMedication(medName, medDosage);
+    hideWarning();
+  });
+
+  const cancelBtn = document.createElement('button');
+  cancelBtn.textContent = 'Cancel';
+  cancelBtn.className = 'cancel-btn';
+  cancelBtn.addEventListener('click', hideWarning);
+
+  actions.appendChild(confirmBtn);
+  actions.appendChild(cancelBtn);
+  warningBox.appendChild(actions);
+}
+
+function hideWarning() {
+  warningBox.classList.add('hidden');
+  warningBox.innerHTML = '';
+}
+
+// Actually adds the medication to the list (used both with and without warnings)
+function addMedication(medName, medDosage) {
   medications.push({
     name: medName,
     dosage: medDosage,
@@ -191,7 +230,7 @@ form.addEventListener('submit', async function(event) {
 
   nameInput.value = '';
   dosageInput.value = '';
-});
+}
 
 // Render whatever was already saved, as soon as the page loads
 renderList();
