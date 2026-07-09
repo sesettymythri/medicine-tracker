@@ -1,0 +1,101 @@
+/* Reset some default browser spacing so we have a clean base */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Segoe UI', Arial, sans-serif;
+  background-color: #f4f6f8;
+  color: #1a1a1a;
+  display: flex;
+  justify-content: center;
+  padding: 40px 20px;
+}
+
+/* Wrap everything in a centered card-like container */
+.container {
+  background: white;
+  padding: 32px;
+  border-radius: 12px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  width: 100%;
+  max-width: 480px;
+}
+
+h1 {
+  font-size: 24px;
+  margin-bottom: 20px;
+  color: #2b2b2b;
+}
+
+/* Form layout */
+#med-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+#med-form input {
+  padding: 10px 12px;
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+#med-form input:focus {
+  outline: none;
+  border-color: #4f7cff;
+}
+
+#med-form button {
+  padding: 10px 12px;
+  background-color: #4f7cff;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+#med-form button:hover {
+  background-color: #3d63d9;
+}
+
+/* Medication list */
+#med-list {
+  list-style: none;
+}
+
+#med-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid #eaecef;
+  border-radius: 8px;
+  margin-bottom: 10px;
+}
+
+#med-list li span {
+  font-size: 14px;
+}
+
+#med-list li button {
+  padding: 6px 10px;
+  font-size: 13px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  background-color: #ffb020;
+  color: white;
+  font-weight: 600;
+}
+
+#med-list li button:disabled {
+  background-color: #34c759;
+  cursor: not-allowed;
+}
