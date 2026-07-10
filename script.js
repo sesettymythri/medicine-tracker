@@ -1,4 +1,5 @@
 // Grab references to the HTML elements we need to work with
+const timeInput = document.getElementById('med-time');
 const form = document.getElementById('med-form');
 const nameInput = document.getElementById('med-name');
 const dosageInput = document.getElementById('med-dosage');
@@ -6,7 +7,22 @@ const medList = document.getElementById('med-list');
 
 // Load existing medications from localStorage, or start with an empty array
 let medications = JSON.parse(localStorage.getItem('medications')) || [];
+// Register the service worker so it can run in the background
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js')
+    .then(function(registration) {
+      console.log('Service Worker registered:', registration);
+    })
+    .catch(function(error) {
+      console.log('Service Worker registration failed:', error);
+    });
+}
 
+// Listen for messages coming back from the service worker (button clicks)
+navigator.serviceWorker.addEventListener('message', function(event) {
+  const { action, medId } = event.data;
+  handleNotificationAction(action, medId);
+});
 // Returns today's date as a simple string like "2026-07-09"
 function getToday() {
   return new Date().toISOString().split('T')[0];
@@ -73,7 +89,7 @@ function renderList() {
     } else {
       // NORMAL MODE: show plain text + buttons
       const infoText = document.createElement('span');
-      infoText.textContent = `${med.name} — ${med.dosage} | Streak: ${med.streak} 🔥`;
+      infoText.textContent = `${med.name} — ${med.dosage} — ⏰ ${formatTime(med.time)} | Streak: ${med.streak} 🔥`;
 
       const takenBtn = document.createElement('button');
       const takenToday = med.lastTaken === getToday();
@@ -170,7 +186,7 @@ form.addEventListener('submit', async function(event) {
 
   const medName = nameInput.value;
   const medDosage = dosageInput.value;
-
+  const medTime=timeInput.value;
   // NEW: check for duplicates first
   const alreadyExists = medications.some(
     med => med.name.toLowerCase() === medName.toLowerCase()
@@ -185,9 +201,9 @@ form.addEventListener('submit', async function(event) {
   const warnings = await checkInteractions(medName, existingNames);
 
   if (warnings.length > 0) {
-    showWarning(warnings, medName, medDosage);
+    showWarning(warnings, medName, medDosage,medTime);
   } else {
-    addMedication(medName, medDosage);
+    addMedication(medName, medDosage,medTime);
   }
 });
 
@@ -213,7 +229,7 @@ function showDuplicateError(medName) {
 }
 
 // Displays the styled warning box with Confirm/Cancel buttons
-function showWarning(warnings, medName, medDosage) {
+function showWarning(warnings, medName, medDosage,medTime) {
   warningBox.innerHTML = ''; // clear any previous warning
   warningBox.classList.remove('hidden');
 
@@ -228,7 +244,7 @@ function showWarning(warnings, medName, medDosage) {
   confirmBtn.textContent = 'Add anyway';
   confirmBtn.className = 'confirm-btn';
   confirmBtn.addEventListener('click', function() {
-    addMedication(medName, medDosage);
+    addMedication(medName, medDosage,medTime);
     hideWarning();
   });
 
@@ -248,10 +264,12 @@ function hideWarning() {
 }
 
 // Actually adds the medication to the list (used both with and without warnings)
-function addMedication(medName, medDosage) {
+function addMedication(medName, medDosage,medTime) {
   medications.push({
+    id: Date.now() + Math.random(),
     name: medName,
     dosage: medDosage,
+    time:medTime,
     streak: 0,
     lastTaken: null
   });
@@ -261,7 +279,90 @@ function addMedication(medName, medDosage) {
 
   nameInput.value = '';
   dosageInput.value = '';
+  timeInput.value='';
 }
+// Converts a 24-hour time string like "20:00" into "8:00 PM"
+function formatTime(time24) {
+  if (!time24) return 'no time set';
 
+  const [hourStr, minute] = time24.split(':');
+  let hour = parseInt(hourStr, 10);
+  const ampm = hour >= 12 ? 'PM' : 'AM';
+
+  hour = hour % 12;
+  if (hour === 0) hour = 12; // 0 becomes 12 for 12 AM/PM
+
+  return `${hour}:${minute} ${ampm}`;
+}
 // Render whatever was already saved, as soon as the page loads
 renderList();
+// Ask the user for permission to show notifications (runs once when page loads)
+function requestNotificationPermission() {
+  if ('Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission();
+  }
+}
+
+// Checks all medications every minute — fires a notification if it's time
+function checkReminders() {
+  const now = Date.now();
+  const currentTime = new Date().toTimeString().slice(0, 5); // "HH:MM"
+  const today = getToday();
+
+  medications.forEach(function(med) {
+    // Skip if already taken today
+    if (med.lastTaken === today) return;
+
+    // Skip if currently snoozed and snooze time hasn't passed yet
+    if (med.snoozeUntil && now < med.snoozeUntil) return;
+
+    // Fire if it's exactly the scheduled time, OR if a snooze just expired
+    const isScheduledTime = med.time === currentTime;
+    const snoozeJustExpired = med.snoozeUntil && now >= med.snoozeUntil;
+
+    if (isScheduledTime || snoozeJustExpired) {
+      med.snoozeUntil = null; // clear snooze once it's fired again
+      showReminderNotification(med);
+    }
+  });
+}
+
+
+// Called when the user clicks Snooze or Stop on a notification
+function handleNotificationAction(action, medId) {
+  const med = medications.find(m => m.id === medId);
+  if (!med) return;
+
+  if (action === 'stop') {
+    // Treat "stop" as marking it taken for today, so no more reminders fire
+    const index = medications.indexOf(med);
+    markAsTaken(index);
+  } else if (action === 'snooze') {
+    // Snooze: remind again in 10 minutes by temporarily overriding the time check
+    med.snoozeUntil = Date.now() + 10 * 60 * 1000; // 10 minutes from now
+    saveToStorage();
+  }
+}
+
+// Shows a notification WITH Snooze/Stop buttons, via the service worker
+function showReminderNotification(med) {
+  if (Notification.permission !== 'granted') return;
+
+  navigator.serviceWorker.ready.then(function(registration) {
+    registration.showNotification('Medication Reminder 💊', {
+      body: `Time to take ${med.name} — ${med.dosage}`,
+      data: { medId: med.id },
+      actions: [
+        { action: 'snooze', title: 'Snooze 10 min' },
+        { action: 'stop', title: 'Mark as taken' }
+      ]
+    });
+  });
+}
+
+
+// Ask for permission as soon as the page loads
+requestNotificationPermission();
+
+// Check every 60 seconds (60000 milliseconds) if it's time for a reminder
+setInterval(checkReminders, 60000);
