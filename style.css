@@ -139,3 +139,40 @@ h1 {
   background-color: #e5e5e5;
   color: #333;
 }
+/* Mobile responsiveness */
+@media (max-width: 480px) {
+  body {
+    padding: 16px;
+  }
+
+  .container {
+    padding: 20px;
+  }
+
+  h1 {
+    font-size: 20px;
+  }
+
+  #med-form {
+    gap: 8px;
+  }
+
+  #med-list li {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  #med-list li button {
+    width: 100%;
+    padding: 10px;
+  }
+
+  .warning-actions {
+    flex-direction: column;
+  }
+
+  .warning-actions button {
+    width: 100%;
+  }
+}

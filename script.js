@@ -59,11 +59,27 @@ async function checkInteractions(newDrugName, existingDrugNames) {
   return warnings;
 }
 
-// Renders the full list on screen based on the 'medications' array
 function renderList() {
   medList.innerHTML = '';
 
-  medications.forEach(function(med, index) {
+  // Show a friendly message if there are no medications yet
+  if (medications.length === 0) {
+    const emptyMessage = document.createElement('li');
+    emptyMessage.textContent = 'No medications yet — add one above to get started.';
+    emptyMessage.style.color = '#888';
+    emptyMessage.style.textAlign = 'center';
+    emptyMessage.style.border = 'none';
+    medList.appendChild(emptyMessage);
+    return;
+  }
+
+  // Sort a COPY of the array by time (earliest first)
+  const sortedMedications = [...medications].sort(function(a, b) {
+    return (a.time || '').localeCompare(b.time || '');
+  });
+
+  sortedMedications.forEach(function(med) {
+    const index = medications.indexOf(med);
     const listItem = document.createElement('li');
 
     if (med.editing) {
