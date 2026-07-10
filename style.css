@@ -72,6 +72,7 @@ h1 {
 
 #med-list li {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
   padding: 12px;
@@ -175,4 +176,22 @@ h1 {
   .warning-actions button {
     width: 100%;
   }
+}
+/* Adherence heatmap */
+.heatmap {
+  display: flex;
+  gap: 3px;
+  margin-top: 8px;
+  width: 100%;
+}
+
+.heatmap-square {
+  width: 14px;
+  height: 14px;
+  background-color: #e5e7eb;
+  border-radius: 3px;
+}
+
+.heatmap-square.taken {
+  background-color: #4caf50;
 }

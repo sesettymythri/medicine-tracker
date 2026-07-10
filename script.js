@@ -128,11 +128,14 @@ function renderList() {
       deleteBtn.addEventListener('click', function() {
         deleteMedication(index);
       });
-
       listItem.appendChild(infoText);
       listItem.appendChild(takenBtn);
       listItem.appendChild(editBtn);
       listItem.appendChild(deleteBtn);
+
+      // NEW: heatmap showing recent history
+      const heatmap = buildHeatmap(med.history || []);
+      listItem.appendChild(heatmap);
     }
 
     medList.appendChild(listItem);
@@ -183,6 +186,8 @@ function markAsTaken(index) {
   }
 
   med.lastTaken = today;
+  if(!med.history) med.history = [];// safety check for old data without history yet
+  med.history.push(today); // new: log this date
 
   saveToStorage();
   renderList();
@@ -287,7 +292,8 @@ function addMedication(medName, medDosage,medTime) {
     dosage: medDosage,
     time:medTime,
     streak: 0,
-    lastTaken: null
+    lastTaken: null,
+    history: [] //New:stores every date this was marked as taken
   });
 
   saveToStorage();
@@ -309,6 +315,32 @@ function formatTime(time24) {
   if (hour === 0) hour = 12; // 0 becomes 12 for 12 AM/PM
 
   return `${hour}:${minute} ${ampm}`;
+}
+// Builds a small row of squares representing the last 14 days,
+// highlighting which days the medication was taken
+function buildHeatmap(history) {
+  const container = document.createElement('div');
+  container.className = 'heatmap';
+
+  const daysToShow = 14;
+
+  for (let i = daysToShow - 1; i >= 0; i--) {
+    const date = new Date();
+    date.setDate(date.getDate() - i);
+    const dateStr = date.toISOString().split('T')[0];
+
+    const square = document.createElement('div');
+    square.className = 'heatmap-square';
+    square.title = dateStr; // shows date on hover
+
+    if (history.includes(dateStr)) {
+      square.classList.add('taken');
+    }
+
+    container.appendChild(square);
+  }
+
+  return container;
 }
 // Render whatever was already saved, as soon as the page loads
 renderList();
