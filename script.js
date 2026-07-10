@@ -4,7 +4,21 @@ const form = document.getElementById('med-form');
 const nameInput = document.getElementById('med-name');
 const dosageInput = document.getElementById('med-dosage');
 const medList = document.getElementById('med-list');
+const darkModeToggle = document.getElementById('dark-mode-toggle');
 
+// Apply saved dark mode preference on page load
+if (localStorage.getItem('darkMode') === 'true') {
+  document.body.classList.add('dark-mode');
+  darkModeToggle.textContent = '☀️';
+}
+
+darkModeToggle.addEventListener('click', function() {
+  document.body.classList.toggle('dark-mode');
+
+  const isDark = document.body.classList.contains('dark-mode');
+  localStorage.setItem('darkMode', isDark);
+  darkModeToggle.textContent = isDark ? '☀️' : '🌙';
+});
 // Load existing medications from localStorage, or start with an empty array
 let medications = JSON.parse(localStorage.getItem('medications')) || [];
 // Register the service worker so it can run in the background
@@ -208,7 +222,7 @@ form.addEventListener('submit', async function(event) {
   const medName = nameInput.value;
   const medDosage = dosageInput.value;
   const medTime=timeInput.value;
-  // NEW: check for duplicates first
+  // check for duplicates first
   const alreadyExists = medications.some(
     med => med.name.toLowerCase() === medName.toLowerCase()
   );
@@ -217,10 +231,16 @@ form.addEventListener('submit', async function(event) {
     showDuplicateError(medName);
     return; // stop here, don't even check interactions
   }
+  const submitBtn = form.querySelector('button[type="submit"]');
+  const originalText = submitBtn.textContent;
+  submitBtn.textContent = 'Checking interactions...';
+  submitBtn.disabled = true;
 
   const existingNames = medications.map(med => med.name);
   const warnings = await checkInteractions(medName, existingNames);
 
+  submitBtn.textContent = originalText;
+  submitBtn.disabled = false;
   if (warnings.length > 0) {
     showWarning(warnings, medName, medDosage,medTime);
   } else {

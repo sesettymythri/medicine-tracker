@@ -195,3 +195,54 @@ h1 {
 .heatmap-square.taken {
   background-color: #4caf50;
 }
+/* Header row layout */
+.header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+#dark-mode-toggle {
+  background: none;
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+/* Dark mode overrides */
+body.dark-mode {
+  background-color: #1a1a1a;
+  color: #f0f0f0;
+}
+
+body.dark-mode .container {
+  background-color: #2a2a2a;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.4);
+}
+
+body.dark-mode h1 {
+  color: #f0f0f0;
+}
+
+body.dark-mode #med-form input {
+  background-color: #3a3a3a;
+  border-color: #555;
+  color: #f0f0f0;
+}
+
+body.dark-mode #med-list li {
+  background-color: #333;
+  border-color: #444;
+}
+
+body.dark-mode #dark-mode-toggle {
+  border-color: #555;
+  color: #f0f0f0;
+}
+
+body.dark-mode .heatmap-square {
+  background-color: #444;
+}
