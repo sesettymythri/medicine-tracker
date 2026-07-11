@@ -8,6 +8,93 @@ const darkModeToggle = document.getElementById('dark-mode-toggle');
 const frequencySelect = document.getElementById('med-frequency');
 const dayOfWeekSelect = document.getElementById('med-day-of-week');
 const dayOfMonthInput = document.getElementById('med-day-of-month');
+const SUPABASE_URL = 'https://miwqeuobqfwnadydmamx.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_f1SkzmVuwotFKHnwcyiqTg_F6BkBEZG';
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// Grab auth screen elements
+const authScreen = document.getElementById('auth-screen');
+const appScreen = document.getElementById('app-screen');
+const authEmailInput = document.getElementById('auth-email');
+const authPasswordInput = document.getElementById('auth-password');
+const authSubmitBtn = document.getElementById('auth-submit-btn');
+const authModeLabel = document.getElementById('auth-mode-label');
+let authToggleLink = document.getElementById('auth-toggle-link');
+const authToggleText = document.getElementById('auth-toggle-text');
+const authError = document.getElementById('auth-error');
+const logoutBtn = document.getElementById('logout-btn');
+
+let isSignUpMode = false;
+
+function attachToggleListener() {
+  authToggleLink = document.getElementById('auth-toggle-link');
+  authToggleLink.addEventListener('click', function(event) {
+    event.preventDefault();
+    isSignUpMode = !isSignUpMode;
+
+    if (isSignUpMode) {
+      authModeLabel.textContent = 'Create a new account';
+      authSubmitBtn.textContent = 'Sign Up';
+      authToggleText.innerHTML = 'Already have an account? <a href="#" id="auth-toggle-link">Log in</a>';
+    } else {
+      authModeLabel.textContent = 'Log in to your account';
+      authSubmitBtn.textContent = 'Log In';
+      authToggleText.innerHTML = 'Don\'t have an account? <a href="#" id="auth-toggle-link">Sign up</a>';
+    }
+
+    attachToggleListener(); // re-attach since innerHTML replaced the link
+  });
+}
+attachToggleListener();
+
+authSubmitBtn.addEventListener('click', async function() {
+  const email = authEmailInput.value;
+  const password = authPasswordInput.value;
+
+  authError.classList.add('hidden');
+
+  if (isSignUpMode) {
+    const { data, error } = await supabaseClient.auth.signUp({ email, password });
+    if (error) {
+      showAuthError(error.message);
+    } else {
+      showAuthError('Account created! Check your email to confirm, then log in.');
+    }
+  } else {
+    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+    if (error) {
+      showAuthError(error.message);
+    } else {
+      onLoginSuccess();
+    }
+  }
+});
+
+function showAuthError(message) {
+  authError.textContent = message;
+  authError.classList.remove('hidden');
+}
+
+function onLoginSuccess() {
+  authScreen.classList.add('hidden');
+  appScreen.classList.remove('hidden');
+  loadUserMedications();
+}
+
+logoutBtn.addEventListener('click', async function() {
+  await supabaseClient.auth.signOut();
+  medications = [];
+  appScreen.classList.add('hidden');
+  authScreen.classList.remove('hidden');
+  authEmailInput.value = '';
+  authPasswordInput.value = '';
+});
+
+supabaseClient.auth.getSession().then(function({ data: { session } }) {
+  if (session) {
+    onLoginSuccess();
+  }
+});
 
 frequencySelect.addEventListener('change', function() {
   dayOfWeekSelect.classList.add('hidden');
@@ -19,6 +106,7 @@ frequencySelect.addEventListener('change', function() {
     dayOfMonthInput.classList.remove('hidden');
   }
 });
+
 // Apply saved dark mode preference on page load
 if (localStorage.getItem('darkMode') === 'true') {
   document.body.classList.add('dark-mode');
@@ -27,13 +115,14 @@ if (localStorage.getItem('darkMode') === 'true') {
 
 darkModeToggle.addEventListener('click', function() {
   document.body.classList.toggle('dark-mode');
-
   const isDark = document.body.classList.contains('dark-mode');
   localStorage.setItem('darkMode', isDark);
   darkModeToggle.textContent = isDark ? '☀️' : '🌙';
 });
-// Load existing medications from localStorage, or start with an empty array
-let medications = JSON.parse(localStorage.getItem('medications')) || [];
+
+// Medications now live in memory, loaded from Supabase (not localStorage)
+let medications = [];
+
 // Register the service worker so it can run in the background
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js')
@@ -45,17 +134,15 @@ if ('serviceWorker' in navigator) {
     });
 }
 
-// Listen for messages coming back from the service worker (button clicks)
 navigator.serviceWorker.addEventListener('message', function(event) {
   const { action, medId } = event.data;
   handleNotificationAction(action, medId);
 });
-// Returns today's date in LOCAL time as "YYYY-MM-DD" (avoids UTC timezone bugs)
+
 function getToday() {
   return formatDateLocal(new Date());
 }
 
-// Formats any Date object into "YYYY-MM-DD" using LOCAL time, not UTC
 function formatDateLocal(date) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -63,24 +150,17 @@ function formatDateLocal(date) {
   return `${year}-${month}-${day}`;
 }
 
-// Fetches the FDA label text for a given drug name, returns the 
-// "drug_interactions" section if it exists
 async function getInteractionText(drugName) {
   const url = `https://api.fda.gov/drug/label.json?search=openfda.generic_name:"${encodeURIComponent(drugName)}"&limit=1`;
   const response = await fetch(url);
-
   if (!response.ok) return null;
-
   const data = await response.json();
   const result = data.results[0];
-
   return result.drug_interactions ? result.drug_interactions[0] : null;
 }
 
-// Checks a NEW drug against all EXISTING drugs for interaction warnings
 async function checkInteractions(newDrugName, existingDrugNames) {
   const warnings = [];
-
   const newDrugInteractionText = await getInteractionText(newDrugName);
   if (!newDrugInteractionText) return warnings;
 
@@ -94,10 +174,44 @@ async function checkInteractions(newDrugName, existingDrugNames) {
   return warnings;
 }
 
+// NEW: Loads this user's medications from Supabase
+async function loadUserMedications() {
+  const { data: { user } } = await supabaseClient.auth.getUser();
+  if (!user) return;
+
+  const { data, error } = await supabaseClient
+    .from('medications')
+    .select('*')
+    .eq('user_id', user.id);
+
+  if (error) {
+    console.error('Error loading medications:', error);
+    return;
+  }
+
+  // Convert database rows (snake_case) into our app's format (camelCase)
+  medications = data.map(function(row) {
+    return {
+      id: row.id,
+      name: row.name,
+      dosage: row.dosage,
+      time: row.time,
+      frequency: row.frequency,
+      dayOfWeek: row.day_of_week,
+      dayOfMonth: row.day_of_month,
+      streak: row.streak,
+      lastTaken: row.last_taken,
+      history: row.history || [],
+      snoozeUntil: null
+    };
+  });
+
+  renderList();
+}
+
 function renderList() {
   medList.innerHTML = '';
 
-  // Show a friendly message if there are no medications yet
   if (medications.length === 0) {
     const emptyMessage = document.createElement('li');
     emptyMessage.textContent = 'No medications yet — add one above to get started.';
@@ -108,7 +222,6 @@ function renderList() {
     return;
   }
 
-  // Sort a COPY of the array by time (earliest first)
   const sortedMedications = [...medications].sort(function(a, b) {
     return (a.time || '').localeCompare(b.time || '');
   });
@@ -118,7 +231,6 @@ function renderList() {
     const listItem = document.createElement('li');
 
     if (med.editing) {
-      // EDIT MODE: show input fields for everything editable
       const nameEditInput = document.createElement('input');
       nameEditInput.type = 'text';
       nameEditInput.value = med.name;
@@ -159,11 +271,9 @@ function renderList() {
       dayOfMonthEditInput.value = med.dayOfMonth || '';
       if (med.frequency !== 'monthly') dayOfMonthEditInput.classList.add('hidden');
 
-      // Show/hide the right extra field as the dropdown changes, same as the main form
       frequencyEditSelect.addEventListener('change', function() {
         dayOfWeekEditSelect.classList.add('hidden');
         dayOfMonthEditInput.classList.add('hidden');
-
         if (frequencyEditSelect.value === 'weekly') {
           dayOfWeekEditSelect.classList.remove('hidden');
         } else if (frequencyEditSelect.value === 'monthly') {
@@ -194,7 +304,6 @@ function renderList() {
       listItem.appendChild(saveBtn);
 
     } else {
-      // NORMAL MODE: show plain text + buttons
       const infoText = document.createElement('span');
       infoText.textContent = `${med.name} — ${med.dosage} — ⏰ ${formatTime(med.time)} | Streak: ${med.streak} 🔥`;
 
@@ -219,12 +328,12 @@ function renderList() {
       deleteBtn.addEventListener('click', function() {
         deleteMedication(index);
       });
+
       listItem.appendChild(infoText);
       listItem.appendChild(takenBtn);
       listItem.appendChild(editBtn);
       listItem.appendChild(deleteBtn);
 
-      
       const heatmap = buildHeatmap(med.history || []);
       listItem.appendChild(heatmap);
     }
@@ -233,38 +342,61 @@ function renderList() {
   });
 }
 
-// Switches a medication into "editing" mode
 function toggleEdit(index) {
   medications[index].editing = true;
   renderList();
 }
 
-// Saves the edited name/dosage and exits editing mode
-function saveEdit(index, newName, newDosage, newTime, newFrequency, newDayOfWeek, newDayOfMonth) {
-  medications[index].name = newName;
-  medications[index].dosage = newDosage;
-  medications[index].time = newTime;
-  medications[index].frequency = newFrequency;
-  medications[index].dayOfWeek = newFrequency === 'weekly' ? parseInt(newDayOfWeek) : null;
-  medications[index].dayOfMonth = newFrequency === 'monthly' ? parseInt(newDayOfMonth) : null;
-  medications[index].editing = false;
+// UPDATED: saves edits to Supabase
+async function saveEdit(index, newName, newDosage, newTime, newFrequency, newDayOfWeek, newDayOfMonth) {
+  const med = medications[index];
+  med.name = newName;
+  med.dosage = newDosage;
+  med.time = newTime;
+  med.frequency = newFrequency;
+  med.dayOfWeek = newFrequency === 'weekly' ? parseInt(newDayOfWeek) : null;
+  med.dayOfMonth = newFrequency === 'monthly' ? parseInt(newDayOfMonth) : null;
+  med.editing = false;
 
-  saveToStorage();
+  const { error } = await supabaseClient
+    .from('medications')
+    .update({
+      name: med.name,
+      dosage: med.dosage,
+      time: med.time,
+      frequency: med.frequency,
+      day_of_week: med.dayOfWeek,
+      day_of_month: med.dayOfMonth
+    })
+    .eq('id', med.id);
+
+  if (error) console.error('Error updating medication:', error);
+
   renderList();
 }
 
-// Removes a medication by its index
-function deleteMedication(index) {
-  const confirmed = confirm(`Remove ${medications[index].name} from your list?`);
+// UPDATED: deletes from Supabase
+async function deleteMedication(index) {
+  const med = medications[index];
+  const confirmed = confirm(`Remove ${med.name} from your list?`);
   if (!confirmed) return;
 
+  const { error } = await supabaseClient
+    .from('medications')
+    .delete()
+    .eq('id', med.id);
+
+  if (error) {
+    console.error('Error deleting medication:', error);
+    return;
+  }
+
   medications.splice(index, 1);
-  saveToStorage();
   renderList();
 }
 
-// Marks a specific medication (by its index in the array) as taken today
-function markAsTaken(index) {
+// UPDATED: marks as taken and saves to Supabase
+async function markAsTaken(index) {
   const med = medications[index];
   const today = getToday();
 
@@ -281,40 +413,44 @@ function markAsTaken(index) {
   }
 
   med.lastTaken = today;
-  if(!med.history) med.history = [];// safety check for old data without history yet
-  med.history.push(today); // new: log this date
+  if (!med.history) med.history = [];
+  med.history.push(today);
 
-  saveToStorage();
+  const { error } = await supabaseClient
+    .from('medications')
+    .update({
+      streak: med.streak,
+      last_taken: med.lastTaken,
+      history: med.history
+    })
+    .eq('id', med.id);
+
+  if (error) console.error('Error updating medication:', error);
+
   renderList();
 }
 
-// Saves the current 'medications' array into localStorage
-function saveToStorage() {
-  localStorage.setItem('medications', JSON.stringify(medications));
-}
-
-// Handle form submission (adding a new medication)
 const warningBox = document.getElementById('warning-box');
 
-// Handle form submission (adding a new medication)
 form.addEventListener('submit', async function(event) {
   event.preventDefault();
 
   const medName = nameInput.value;
   const medDosage = dosageInput.value;
-  const medTime=timeInput.value;
-  const medFrequency = frequencySelect.value; 
-  const medDayOfWeek = dayOfWeekSelect.value; 
+  const medTime = timeInput.value;
+  const medFrequency = frequencySelect.value;
+  const medDayOfWeek = dayOfWeekSelect.value;
   const medDayOfMonth = dayOfMonthInput.value;
-  // check for duplicates first
+
   const alreadyExists = medications.some(
     med => med.name.toLowerCase() === medName.toLowerCase()
   );
 
   if (alreadyExists) {
     showDuplicateError(medName);
-    return; // stop here, don't even check interactions
+    return;
   }
+
   const submitBtn = form.querySelector('button[type="submit"]');
   const originalText = submitBtn.textContent;
   submitBtn.textContent = 'Checking interactions...';
@@ -325,13 +461,13 @@ form.addEventListener('submit', async function(event) {
 
   submitBtn.textContent = originalText;
   submitBtn.disabled = false;
+
   if (warnings.length > 0) {
-    showWarning(warnings, medName, medDosage,medTime,medFrequency,medDayOfWeek,medDayOfMonth);
+    showWarning(warnings, medName, medDosage, medTime, medFrequency, medDayOfWeek, medDayOfMonth);
   } else {
-    addMedication(medName, medDosage,medTime,medFrequency,medDayOfWeek,medDayOfMonth);
+    addMedication(medName, medDosage, medTime, medFrequency, medDayOfWeek, medDayOfMonth);
   }
 });
-
 
 function showDuplicateError(medName) {
   warningBox.innerHTML = '';
@@ -353,8 +489,7 @@ function showDuplicateError(medName) {
   warningBox.appendChild(actions);
 }
 
-// Displays the styled warning box with Confirm/Cancel buttons
-function showWarning(warnings, medName, medDosage,medTime,medFrequency,medDayOfWeek,medDayOfMonth) {
+function showWarning(warnings, medName, medDosage, medTime, medFrequency, medDayOfWeek, medDayOfMonth) {
   warningBox.innerHTML = '';
   warningBox.classList.remove('hidden');
 
@@ -369,7 +504,7 @@ function showWarning(warnings, medName, medDosage,medTime,medFrequency,medDayOfW
   confirmBtn.textContent = 'Add anyway';
   confirmBtn.className = 'confirm-btn';
   confirmBtn.addEventListener('click', function() {
-    addMedication(medName, medDosage,medTime,medFrequency, medDayOfWeek, medDayOfMonth);
+    addMedication(medName, medDosage, medTime, medFrequency, medDayOfWeek, medDayOfMonth);
     hideWarning();
   });
 
@@ -388,50 +523,73 @@ function hideWarning() {
   warningBox.innerHTML = '';
 }
 
-// Actually adds the medication to the list (used both with and without warnings)
-function addMedication(medName, medDosage,medTime,medFrequency, medDayOfWeek, medDayOfMonth) {
+// UPDATED: saves new medication to Supabase
+async function addMedication(medName, medDosage, medTime, medFrequency, medDayOfWeek, medDayOfMonth) {
+  const { data: { user } } = await supabaseClient.auth.getUser();
+  if (!user) {
+    console.error('No logged in user');
+    return;
+  }
+
+  const { data, error } = await supabaseClient
+    .from('medications')
+    .insert({
+      user_id: user.id,
+      name: medName,
+      dosage: medDosage,
+      time: medTime,
+      frequency: medFrequency,
+      day_of_week: medFrequency === 'weekly' ? parseInt(medDayOfWeek) : null,
+      day_of_month: medFrequency === 'monthly' ? parseInt(medDayOfMonth) : null,
+      streak: 0,
+      last_taken: null,
+      history: []
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error adding medication:', error);
+    return;
+  }
+
   medications.push({
-    id: Date.now() + Math.random(),
-    name: medName,
-    dosage: medDosage,
-    time:medTime,
-    frequency: medFrequency,           
-    dayOfWeek: medFrequency === 'weekly' ? parseInt(medDayOfWeek) : null,   
-    dayOfMonth: medFrequency === 'monthly' ? parseInt(medDayOfMonth) : null,
-    streak: 0,
-    lastTaken: null,
-    history: [] //New:stores every date this was marked as taken
+    id: data.id,
+    name: data.name,
+    dosage: data.dosage,
+    time: data.time,
+    frequency: data.frequency,
+    dayOfWeek: data.day_of_week,
+    dayOfMonth: data.day_of_month,
+    streak: data.streak,
+    lastTaken: data.last_taken,
+    history: data.history || [],
+    snoozeUntil: null
   });
 
-  saveToStorage();
   renderList();
 
   nameInput.value = '';
   dosageInput.value = '';
-  timeInput.value='';
-  frequencySelect.value = 'daily'; 
-  dayOfWeekSelect.classList.add('hidden'); 
+  timeInput.value = '';
+  frequencySelect.value = 'daily';
+  dayOfWeekSelect.classList.add('hidden');
   dayOfMonthInput.classList.add('hidden');
 }
-// Converts a 24-hour time string like "20:00" into "8:00 PM"
+
 function formatTime(time24) {
   if (!time24) return 'no time set';
-
   const [hourStr, minute] = time24.split(':');
   let hour = parseInt(hourStr, 10);
   const ampm = hour >= 12 ? 'PM' : 'AM';
-
   hour = hour % 12;
-  if (hour === 0) hour = 12; // 0 becomes 12 for 12 AM/PM
-
+  if (hour === 0) hour = 12;
   return `${hour}:${minute} ${ampm}`;
 }
-// Builds a small row of squares representing the last 14 days,
-// highlighting which days the medication was taken
+
 function buildHeatmap(history) {
   const container = document.createElement('div');
   container.className = 'heatmap';
-
   const daysToShow = 14;
 
   for (let i = daysToShow - 1; i >= 0; i--) {
@@ -441,7 +599,7 @@ function buildHeatmap(history) {
 
     const square = document.createElement('div');
     square.className = 'heatmap-square';
-    square.title = dateStr; // shows date on hover
+    square.title = dateStr;
 
     if (history.includes(dateStr)) {
       square.classList.add('taken');
@@ -452,29 +610,22 @@ function buildHeatmap(history) {
 
   return container;
 }
-// Render whatever was already saved, as soon as the page loads
-renderList();
-// Ask the user for permission to show notifications (runs once when page loads)
+
 function requestNotificationPermission() {
   if ('Notification' in window && Notification.permission === 'default') {
     Notification.requestPermission();
   }
 }
 
-// Checks all medications every minute — fires a notification if it's time
 function checkReminders() {
   const now = Date.now();
   const nowDate = new Date();
-  const currentTime = nowDate.toTimeString().slice(0, 5); // "HH:MM"
+  const currentTime = nowDate.toTimeString().slice(0, 5);
   const today = getToday();
 
   medications.forEach(function(med) {
-    
     if (med.lastTaken === today) return;
-
     if (med.snoozeUntil && now < med.snoozeUntil) return;
-
-    
     if (!isDueToday(med, nowDate)) return;
 
     const isScheduledTime = med.time === currentTime;
@@ -487,41 +638,25 @@ function checkReminders() {
   });
 }
 
-
 function isDueToday(med, date) {
-  if (!med.frequency || med.frequency === 'daily') {
-    return true; 
-  }
-
-  if (med.frequency === 'weekly') {
-    return date.getDay() === med.dayOfWeek; 
-  }
-
-  if (med.frequency === 'monthly') {
-    return date.getDate() === med.dayOfMonth;  
-  }
-
-  return true; 
+  if (!med.frequency || med.frequency === 'daily') return true;
+  if (med.frequency === 'weekly') return date.getDay() === med.dayOfWeek;
+  if (med.frequency === 'monthly') return date.getDate() === med.dayOfMonth;
+  return true;
 }
 
-
-// Called when the user clicks Snooze or Stop on a notification
 function handleNotificationAction(action, medId) {
   const med = medications.find(m => m.id === medId);
   if (!med) return;
 
   if (action === 'stop') {
-    // Treat "stop" as marking it taken for today, so no more reminders fire
     const index = medications.indexOf(med);
     markAsTaken(index);
   } else if (action === 'snooze') {
-    // Snooze: remind again in 10 minutes by temporarily overriding the time check
-    med.snoozeUntil = Date.now() + 10 * 60 * 1000; // 10 minutes from now
-    saveToStorage();
+    med.snoozeUntil = Date.now() + 10 * 60 * 1000;
   }
 }
 
-// Shows a notification WITH Snooze/Stop buttons, via the service worker
 function showReminderNotification(med) {
   if (Notification.permission !== 'granted') return;
 
@@ -537,9 +672,5 @@ function showReminderNotification(med) {
   });
 }
 
-
-// Ask for permission as soon as the page loads
 requestNotificationPermission();
-
-// Check every 60 seconds (60000 milliseconds) if it's time for a reminder
 setInterval(checkReminders, 60000);

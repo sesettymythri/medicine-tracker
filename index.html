@@ -10,41 +10,66 @@
 <body>
 
   <div class="container">
-    <div class="header-row">
-      <h1>My Medications</h1>
-      <button id="dark-mode-toggle" title="Toggle dark mode">🌙</button>
+
+    <!-- Auth screen (shown when logged out) -->
+    <div id="auth-screen">
+      <h1>💊 Medication Tracker</h1>
+      <p id="auth-mode-label">Log in to your account</p>
+
+      <input type="email" id="auth-email" placeholder="Email" required>
+      <input type="password" id="auth-password" placeholder="Password" required>
+
+      <button id="auth-submit-btn">Log In</button>
+      <p id="auth-toggle-text">Don't have an account? <a href="#" id="auth-toggle-link">Sign up</a></p>
+
+      <div id="auth-error" class="hidden"></div>
     </div>
-    <form id="med-form">
-  <input type="text" id="med-name" placeholder="Medication name" required>
-  <input type="text" id="med-dosage" placeholder="Dosage (e.g. 500mg)" required>
-  <input type="time" id="med-time" required>
 
-  <select id="med-frequency">
-    <option value="daily">Daily</option>
-    <option value="weekly">Weekly</option>
-    <option value="monthly">Monthly</option>
-  </select>
+    <!-- App screen (shown when logged in) -->
+    <div id="app-screen" class="hidden">
+      <div class="header-row">
+        <h1>My Medications</h1>
+        <div>
+          <button id="dark-mode-toggle" title="Toggle dark mode">🌙</button>
+          <button id="logout-btn" title="Log out">🚪</button>
+        </div>
+      </div>
 
-  <select id="med-day-of-week" class="hidden">
-    <option value="0">Sunday</option>
-    <option value="1">Monday</option>
-    <option value="2">Tuesday</option>
-    <option value="3">Wednesday</option>
-    <option value="4">Thursday</option>
-    <option value="5">Friday</option>
-    <option value="6">Saturday</option>
-  </select>
+      <form id="med-form">
+        <input type="text" id="med-name" placeholder="Medication name" required>
+        <input type="text" id="med-dosage" placeholder="Dosage (e.g. 500mg)" required>
+        <input type="time" id="med-time" required>
 
-  <input type="number" id="med-day-of-month" class="hidden" min="1" max="31" placeholder="Day of month (1-31)">
+        <select id="med-frequency">
+          <option value="daily">Daily</option>
+          <option value="weekly">Weekly</option>
+          <option value="monthly">Monthly</option>
+        </select>
 
-  <button type="submit">Add Medication</button>
-</form>
+        <select id="med-day-of-week" class="hidden">
+          <option value="0">Sunday</option>
+          <option value="1">Monday</option>
+          <option value="2">Tuesday</option>
+          <option value="3">Wednesday</option>
+          <option value="4">Thursday</option>
+          <option value="5">Friday</option>
+          <option value="6">Saturday</option>
+        </select>
 
-    <div id="warning-box" class="hidden"></div>
+        <input type="number" id="med-day-of-month" class="hidden" min="1" max="31" placeholder="Day of month (1-31)">
 
-    <ul id="med-list"></ul>
+        <button type="submit">Add Medication</button>
+      </form>
+
+      <div id="warning-box" class="hidden"></div>
+
+      <ul id="med-list"></ul>
+    </div>
+
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="script.js"></script>
+
 </body>
 </html>

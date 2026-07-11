@@ -252,3 +252,96 @@ body.dark-mode .heatmap-square.taken {
 .hidden {
   display: none;
 }
+/* Auth screen */
+#auth-screen h1 {
+  text-align: center;
+  margin-bottom: 8px;
+}
+
+#auth-mode-label {
+  text-align: center;
+  color: #666;
+  margin-bottom: 20px;
+  font-size: 14px;
+}
+
+#auth-screen input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+  font-size: 14px;
+  margin-bottom: 10px;
+}
+
+#auth-submit-btn {
+  width: 100%;
+  padding: 10px 12px;
+  background-color: #4f7cff;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 4px;
+}
+
+#auth-submit-btn:hover {
+  background-color: #3d63d9;
+}
+
+#auth-toggle-text {
+  text-align: center;
+  margin-top: 14px;
+  font-size: 13px;
+  color: #666;
+}
+
+#auth-toggle-text a {
+  color: #4f7cff;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+#auth-error {
+  background-color: #fee;
+  border: 1px solid #f5a5a5;
+  color: #a02020;
+  padding: 10px 12px;
+  border-radius: 8px;
+  margin-top: 12px;
+  font-size: 13px;
+}
+
+/* Dark mode for auth screen */
+body.dark-mode #auth-screen input {
+  background-color: #3a3a3a;
+  border-color: #555;
+  color: #f0f0f0;
+}
+
+body.dark-mode #auth-mode-label,
+body.dark-mode #auth-toggle-text {
+  color: #ccc;
+}
+
+/* Header row's button group */
+.header-row > div {
+  display: flex;
+  gap: 8px;
+}
+
+#logout-btn {
+  background: none;
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+body.dark-mode #logout-btn {
+  border-color: #555;
+  color: #f0f0f0;
+}
