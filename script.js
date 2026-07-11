@@ -5,7 +5,20 @@ const nameInput = document.getElementById('med-name');
 const dosageInput = document.getElementById('med-dosage');
 const medList = document.getElementById('med-list');
 const darkModeToggle = document.getElementById('dark-mode-toggle');
+const frequencySelect = document.getElementById('med-frequency');
+const dayOfWeekSelect = document.getElementById('med-day-of-week');
+const dayOfMonthInput = document.getElementById('med-day-of-month');
 
+frequencySelect.addEventListener('change', function() {
+  dayOfWeekSelect.classList.add('hidden');
+  dayOfMonthInput.classList.add('hidden');
+
+  if (frequencySelect.value === 'weekly') {
+    dayOfWeekSelect.classList.remove('hidden');
+  } else if (frequencySelect.value === 'monthly') {
+    dayOfMonthInput.classList.remove('hidden');
+  }
+});
 // Apply saved dark mode preference on page load
 if (localStorage.getItem('darkMode') === 'true') {
   document.body.classList.add('dark-mode');
@@ -37,9 +50,17 @@ navigator.serviceWorker.addEventListener('message', function(event) {
   const { action, medId } = event.data;
   handleNotificationAction(action, medId);
 });
-// Returns today's date as a simple string like "2026-07-09"
+// Returns today's date in LOCAL time as "YYYY-MM-DD" (avoids UTC timezone bugs)
 function getToday() {
-  return new Date().toISOString().split('T')[0];
+  return formatDateLocal(new Date());
+}
+
+// Formats any Date object into "YYYY-MM-DD" using LOCAL time, not UTC
+function formatDateLocal(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 // Fetches the FDA label text for a given drug name, returns the 
@@ -191,7 +212,7 @@ function markAsTaken(index) {
 
   const yesterday = new Date();
   yesterday.setDate(yesterday.getDate() - 1);
-  const yesterdayStr = yesterday.toISOString().split('T')[0];
+  const yesterdayStr = formatDateLocal(yesterday);
 
   if (med.lastTaken === yesterdayStr) {
     med.streak += 1;
@@ -347,7 +368,7 @@ function buildHeatmap(history) {
   for (let i = daysToShow - 1; i >= 0; i--) {
     const date = new Date();
     date.setDate(date.getDate() - i);
-    const dateStr = date.toISOString().split('T')[0];
+    const dateStr = formatDateLocal(date);
 
     const square = document.createElement('div');
     square.className = 'heatmap-square';

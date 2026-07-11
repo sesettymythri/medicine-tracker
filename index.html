@@ -14,13 +14,31 @@
       <h1>My Medications</h1>
       <button id="dark-mode-toggle" title="Toggle dark mode">🌙</button>
     </div>
-
     <form id="med-form">
-      <input type="text" id="med-name" placeholder="Medication name" required>
-      <input type="text" id="med-dosage" placeholder="Dosage (e.g. 500mg)" required>
-      <input type="time" id="med-time" required>
-      <button type="submit">Add Medication</button>
-    </form>
+  <input type="text" id="med-name" placeholder="Medication name" required>
+  <input type="text" id="med-dosage" placeholder="Dosage (e.g. 500mg)" required>
+  <input type="time" id="med-time" required>
+
+  <select id="med-frequency">
+    <option value="daily">Daily</option>
+    <option value="weekly">Weekly</option>
+    <option value="monthly">Monthly</option>
+  </select>
+
+  <select id="med-day-of-week" class="hidden">
+    <option value="0">Sunday</option>
+    <option value="1">Monday</option>
+    <option value="2">Tuesday</option>
+    <option value="3">Wednesday</option>
+    <option value="4">Thursday</option>
+    <option value="5">Friday</option>
+    <option value="6">Saturday</option>
+  </select>
+
+  <input type="number" id="med-day-of-month" class="hidden" min="1" max="31" placeholder="Day of month (1-31)">
+
+  <button type="submit">Add Medication</button>
+</form>
 
     <div id="warning-box" class="hidden"></div>
 

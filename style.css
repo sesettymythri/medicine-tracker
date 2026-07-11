@@ -246,3 +246,9 @@ body.dark-mode #dark-mode-toggle {
 body.dark-mode .heatmap-square {
   background-color: #444;
 }
+body.dark-mode .heatmap-square.taken {
+  background-color: #4caf50;
+}
+.hidden {
+  display: none;
+}
