@@ -118,7 +118,7 @@ function renderList() {
     const listItem = document.createElement('li');
 
     if (med.editing) {
-      // EDIT MODE: show input fields instead of plain text
+      // EDIT MODE: show input fields for everything editable
       const nameEditInput = document.createElement('input');
       nameEditInput.type = 'text';
       nameEditInput.value = med.name;
@@ -127,14 +127,70 @@ function renderList() {
       dosageEditInput.type = 'text';
       dosageEditInput.value = med.dosage;
 
+      const timeEditInput = document.createElement('input');
+      timeEditInput.type = 'time';
+      timeEditInput.value = med.time || '';
+
+      const frequencyEditSelect = document.createElement('select');
+      ['daily', 'weekly', 'monthly'].forEach(function(freq) {
+        const option = document.createElement('option');
+        option.value = freq;
+        option.textContent = freq.charAt(0).toUpperCase() + freq.slice(1);
+        if (med.frequency === freq) option.selected = true;
+        frequencyEditSelect.appendChild(option);
+      });
+
+      const dayOfWeekEditSelect = document.createElement('select');
+      const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      dayNames.forEach(function(day, i) {
+        const option = document.createElement('option');
+        option.value = i;
+        option.textContent = day;
+        if (med.dayOfWeek === i) option.selected = true;
+        dayOfWeekEditSelect.appendChild(option);
+      });
+      if (med.frequency !== 'weekly') dayOfWeekEditSelect.classList.add('hidden');
+
+      const dayOfMonthEditInput = document.createElement('input');
+      dayOfMonthEditInput.type = 'number';
+      dayOfMonthEditInput.min = '1';
+      dayOfMonthEditInput.max = '31';
+      dayOfMonthEditInput.placeholder = 'Day of month (1-31)';
+      dayOfMonthEditInput.value = med.dayOfMonth || '';
+      if (med.frequency !== 'monthly') dayOfMonthEditInput.classList.add('hidden');
+
+      // Show/hide the right extra field as the dropdown changes, same as the main form
+      frequencyEditSelect.addEventListener('change', function() {
+        dayOfWeekEditSelect.classList.add('hidden');
+        dayOfMonthEditInput.classList.add('hidden');
+
+        if (frequencyEditSelect.value === 'weekly') {
+          dayOfWeekEditSelect.classList.remove('hidden');
+        } else if (frequencyEditSelect.value === 'monthly') {
+          dayOfMonthEditInput.classList.remove('hidden');
+        }
+      });
+
       const saveBtn = document.createElement('button');
       saveBtn.textContent = 'Save';
       saveBtn.addEventListener('click', function() {
-        saveEdit(index, nameEditInput.value, dosageEditInput.value);
+        saveEdit(
+          index,
+          nameEditInput.value,
+          dosageEditInput.value,
+          timeEditInput.value,
+          frequencyEditSelect.value,
+          dayOfWeekEditSelect.value,
+          dayOfMonthEditInput.value
+        );
       });
 
       listItem.appendChild(nameEditInput);
       listItem.appendChild(dosageEditInput);
+      listItem.appendChild(timeEditInput);
+      listItem.appendChild(frequencyEditSelect);
+      listItem.appendChild(dayOfWeekEditSelect);
+      listItem.appendChild(dayOfMonthEditInput);
       listItem.appendChild(saveBtn);
 
     } else {
@@ -168,7 +224,7 @@ function renderList() {
       listItem.appendChild(editBtn);
       listItem.appendChild(deleteBtn);
 
-      // NEW: heatmap showing recent history
+      
       const heatmap = buildHeatmap(med.history || []);
       listItem.appendChild(heatmap);
     }
@@ -184,9 +240,13 @@ function toggleEdit(index) {
 }
 
 // Saves the edited name/dosage and exits editing mode
-function saveEdit(index, newName, newDosage) {
+function saveEdit(index, newName, newDosage, newTime, newFrequency, newDayOfWeek, newDayOfMonth) {
   medications[index].name = newName;
   medications[index].dosage = newDosage;
+  medications[index].time = newTime;
+  medications[index].frequency = newFrequency;
+  medications[index].dayOfWeek = newFrequency === 'weekly' ? parseInt(newDayOfWeek) : null;
+  medications[index].dayOfMonth = newFrequency === 'monthly' ? parseInt(newDayOfMonth) : null;
   medications[index].editing = false;
 
   saveToStorage();
@@ -243,6 +303,9 @@ form.addEventListener('submit', async function(event) {
   const medName = nameInput.value;
   const medDosage = dosageInput.value;
   const medTime=timeInput.value;
+  const medFrequency = frequencySelect.value; 
+  const medDayOfWeek = dayOfWeekSelect.value; 
+  const medDayOfMonth = dayOfMonthInput.value;
   // check for duplicates first
   const alreadyExists = medications.some(
     med => med.name.toLowerCase() === medName.toLowerCase()
@@ -263,13 +326,13 @@ form.addEventListener('submit', async function(event) {
   submitBtn.textContent = originalText;
   submitBtn.disabled = false;
   if (warnings.length > 0) {
-    showWarning(warnings, medName, medDosage,medTime);
+    showWarning(warnings, medName, medDosage,medTime,medFrequency,medDayOfWeek,medDayOfMonth);
   } else {
-    addMedication(medName, medDosage,medTime);
+    addMedication(medName, medDosage,medTime,medFrequency,medDayOfWeek,medDayOfMonth);
   }
 });
 
-// NEW: shows an error message when trying to add a duplicate
+
 function showDuplicateError(medName) {
   warningBox.innerHTML = '';
   warningBox.classList.remove('hidden');
@@ -291,8 +354,8 @@ function showDuplicateError(medName) {
 }
 
 // Displays the styled warning box with Confirm/Cancel buttons
-function showWarning(warnings, medName, medDosage,medTime) {
-  warningBox.innerHTML = ''; // clear any previous warning
+function showWarning(warnings, medName, medDosage,medTime,medFrequency,medDayOfWeek,medDayOfMonth) {
+  warningBox.innerHTML = '';
   warningBox.classList.remove('hidden');
 
   const message = document.createElement('div');
@@ -306,7 +369,7 @@ function showWarning(warnings, medName, medDosage,medTime) {
   confirmBtn.textContent = 'Add anyway';
   confirmBtn.className = 'confirm-btn';
   confirmBtn.addEventListener('click', function() {
-    addMedication(medName, medDosage,medTime);
+    addMedication(medName, medDosage,medTime,medFrequency, medDayOfWeek, medDayOfMonth);
     hideWarning();
   });
 
@@ -326,12 +389,15 @@ function hideWarning() {
 }
 
 // Actually adds the medication to the list (used both with and without warnings)
-function addMedication(medName, medDosage,medTime) {
+function addMedication(medName, medDosage,medTime,medFrequency, medDayOfWeek, medDayOfMonth) {
   medications.push({
     id: Date.now() + Math.random(),
     name: medName,
     dosage: medDosage,
     time:medTime,
+    frequency: medFrequency,           
+    dayOfWeek: medFrequency === 'weekly' ? parseInt(medDayOfWeek) : null,   
+    dayOfMonth: medFrequency === 'monthly' ? parseInt(medDayOfMonth) : null,
     streak: 0,
     lastTaken: null,
     history: [] //New:stores every date this was marked as taken
@@ -343,6 +409,9 @@ function addMedication(medName, medDosage,medTime) {
   nameInput.value = '';
   dosageInput.value = '';
   timeInput.value='';
+  frequencySelect.value = 'daily'; 
+  dayOfWeekSelect.classList.add('hidden'); 
+  dayOfMonthInput.classList.add('hidden');
 }
 // Converts a 24-hour time string like "20:00" into "8:00 PM"
 function formatTime(time24) {
@@ -395,25 +464,44 @@ function requestNotificationPermission() {
 // Checks all medications every minute — fires a notification if it's time
 function checkReminders() {
   const now = Date.now();
-  const currentTime = new Date().toTimeString().slice(0, 5); // "HH:MM"
+  const nowDate = new Date();
+  const currentTime = nowDate.toTimeString().slice(0, 5); // "HH:MM"
   const today = getToday();
 
   medications.forEach(function(med) {
-    // Skip if already taken today
+    
     if (med.lastTaken === today) return;
 
-    // Skip if currently snoozed and snooze time hasn't passed yet
     if (med.snoozeUntil && now < med.snoozeUntil) return;
 
-    // Fire if it's exactly the scheduled time, OR if a snooze just expired
+    
+    if (!isDueToday(med, nowDate)) return;
+
     const isScheduledTime = med.time === currentTime;
     const snoozeJustExpired = med.snoozeUntil && now >= med.snoozeUntil;
 
     if (isScheduledTime || snoozeJustExpired) {
-      med.snoozeUntil = null; // clear snooze once it's fired again
+      med.snoozeUntil = null;
       showReminderNotification(med);
     }
   });
+}
+
+
+function isDueToday(med, date) {
+  if (!med.frequency || med.frequency === 'daily') {
+    return true; 
+  }
+
+  if (med.frequency === 'weekly') {
+    return date.getDay() === med.dayOfWeek; 
+  }
+
+  if (med.frequency === 'monthly') {
+    return date.getDate() === med.dayOfMonth;  
+  }
+
+  return true; 
 }
 
 
