@@ -56,19 +56,46 @@ authSubmitBtn.addEventListener('click', async function() {
   if (isSignUpMode) {
     const { data, error } = await supabaseClient.auth.signUp({ email, password });
     if (error) {
-      showAuthError(error.message);
+      showAuthError(getFriendlyAuthError(error.message));
     } else {
       showAuthError('Account created! Check your email to confirm, then log in.');
     }
   } else {
     const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
     if (error) {
-      showAuthError(error.message);
+      showAuthError(getFriendlyAuthError(error.message));
     } else {
       onLoginSuccess();
     }
   }
 });
+
+// Translates common Supabase error messages into friendlier, plain-English versions
+function getFriendlyAuthError(message) {
+  const lower = message.toLowerCase();
+
+  if (lower.includes('invalid login credentials')) {
+    return 'Incorrect email or password. Please try again.';
+  }
+  if (lower.includes('user already registered')) {
+    return 'An account with this email already exists. Try logging in instead.';
+  }
+  if (lower.includes('password should be at least')) {
+    return 'Password must be at least 6 characters long.';
+  }
+  if (lower.includes('email not confirmed')) {
+    return 'Please confirm your email first — check your inbox for the confirmation link.';
+  }
+  if (lower.includes('unable to validate email address')) {
+    return 'Please enter a valid email address.';
+  }
+  if (lower.includes('email rate limit exceeded')) {
+    return 'Too many attempts. Please wait a few minutes and try again.';
+  }
+
+  // Fallback: show the original message if we don't have a friendlier version
+  return message;
+}
 
 function showAuthError(message) {
   authError.textContent = message;
