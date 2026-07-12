@@ -344,4 +344,18 @@ body.dark-mode #auth-toggle-text {
 body.dark-mode #logout-btn {
   border-color: #555;
   color: #f0f0f0;
+}#forgot-password-text {
+  text-align: right;
+  font-size: 13px;
+  margin-top: -4px;
+  margin-bottom: 14px;
+}
+
+#forgot-password-text a {
+  color: #4f7cff;
+  text-decoration: none;
+}
+
+body.dark-mode #forgot-password-text a {
+  color: #7c9eff;
 }

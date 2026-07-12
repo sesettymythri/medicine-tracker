@@ -42,7 +42,7 @@ function attachToggleListener() {
       authToggleText.innerHTML = 'Don\'t have an account? <a href="#" id="auth-toggle-link">Sign up</a>';
     }
 
-    attachToggleListener(); // re-attach since innerHTML replaced the link
+    attachToggleListener();
   });
 }
 attachToggleListener();
@@ -96,6 +96,42 @@ supabaseClient.auth.getSession().then(function({ data: { session } }) {
   }
 });
 
+// Forgot password flow
+const forgotPasswordLink = document.getElementById('forgot-password-link');
+
+forgotPasswordLink.addEventListener('click', async function(event) {
+  event.preventDefault();
+  const email = authEmailInput.value;
+  if (!email) {
+    showAuthError('Please enter your email above first, then click "Forgot password?"');
+    return;
+  }
+  const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
+    redirectTo: window.location.origin + window.location.pathname
+  });
+  if (error) {
+    showAuthError(error.message);
+  } else {
+    showAuthError('Password reset email sent! Check your inbox.');
+  }
+});
+
+// Detect if this page load is from a password reset email link
+supabaseClient.auth.onAuthStateChange(function(event, session) {
+  if (event === 'PASSWORD_RECOVERY') {
+    const newPassword = prompt('Enter your new password:');
+    if (newPassword) {
+      supabaseClient.auth.updateUser({ password: newPassword }).then(function({ error }) {
+        if (error) {
+          alert('Error updating password: ' + error.message);
+        } else {
+          alert('Password updated successfully! You can now log in with your new password.');
+        }
+      });
+    }
+  }
+});
+
 frequencySelect.addEventListener('change', function() {
   dayOfWeekSelect.classList.add('hidden');
   dayOfMonthInput.classList.add('hidden');
@@ -120,7 +156,7 @@ darkModeToggle.addEventListener('click', function() {
   darkModeToggle.textContent = isDark ? '☀️' : '🌙';
 });
 
-// Medications now live in memory, loaded from Supabase (not localStorage)
+// Medications now live in memory, loaded from Supabase
 let medications = [];
 
 // Register the service worker so it can run in the background
@@ -174,7 +210,6 @@ async function checkInteractions(newDrugName, existingDrugNames) {
   return warnings;
 }
 
-// NEW: Loads this user's medications from Supabase
 async function loadUserMedications() {
   const { data: { user } } = await supabaseClient.auth.getUser();
   if (!user) return;
@@ -189,7 +224,6 @@ async function loadUserMedications() {
     return;
   }
 
-  // Convert database rows (snake_case) into our app's format (camelCase)
   medications = data.map(function(row) {
     return {
       id: row.id,
@@ -347,7 +381,6 @@ function toggleEdit(index) {
   renderList();
 }
 
-// UPDATED: saves edits to Supabase
 async function saveEdit(index, newName, newDosage, newTime, newFrequency, newDayOfWeek, newDayOfMonth) {
   const med = medications[index];
   med.name = newName;
@@ -375,7 +408,6 @@ async function saveEdit(index, newName, newDosage, newTime, newFrequency, newDay
   renderList();
 }
 
-// UPDATED: deletes from Supabase
 async function deleteMedication(index) {
   const med = medications[index];
   const confirmed = confirm(`Remove ${med.name} from your list?`);
@@ -395,7 +427,6 @@ async function deleteMedication(index) {
   renderList();
 }
 
-// UPDATED: marks as taken and saves to Supabase
 async function markAsTaken(index) {
   const med = medications[index];
   const today = getToday();
@@ -523,7 +554,6 @@ function hideWarning() {
   warningBox.innerHTML = '';
 }
 
-// UPDATED: saves new medication to Supabase
 async function addMedication(medName, medDosage, medTime, medFrequency, medDayOfWeek, medDayOfMonth) {
   const { data: { user } } = await supabaseClient.auth.getUser();
   if (!user) {
