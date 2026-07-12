@@ -8,6 +8,13 @@ const darkModeToggle = document.getElementById('dark-mode-toggle');
 const frequencySelect = document.getElementById('med-frequency');
 const dayOfWeekSelect = document.getElementById('med-day-of-week');
 const dayOfMonthInput = document.getElementById('med-day-of-month');
+const reportsBtn = document.getElementById('reports-btn');
+const closeReportsBtn = document.getElementById('close-reports-btn');
+const reportsScreen = document.getElementById('reports-screen');
+const reportsSummary = document.getElementById('reports-summary');
+const reportsTableBody = document.getElementById('reports-table-body');
+const medListForReports = document.getElementById('med-list');
+const medFormForReports = document.getElementById('med-form');
 const SUPABASE_URL = 'https://miwqeuobqfwnadydmamx.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_f1SkzmVuwotFKHnwcyiqTg_F6BkBEZG';
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -670,6 +677,112 @@ function buildHeatmap(history) {
   }
 
   return container;
+}
+reportsBtn.addEventListener('click', function() {
+  generateReport();
+  reportsScreen.classList.remove('hidden');
+  medListForReports.classList.add('hidden');
+  medFormForReports.classList.add('hidden');
+  warningBox.classList.add('hidden');
+});
+
+closeReportsBtn.addEventListener('click', function() {
+  reportsScreen.classList.add('hidden');
+  medListForReports.classList.remove('hidden');
+  medFormForReports.classList.remove('hidden');
+});
+
+// Generates the full report: summary stats + day-by-day table
+function generateReport() {
+  const daysToShow = 14; // same window as the heatmap, for consistency
+  const today = new Date();
+  const rows = []; // will hold {date, name, time, status}
+
+  let totalTaken = 0;
+  let totalMissed = 0;
+
+  medications.forEach(function(med) {
+    for (let i = daysToShow - 1; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(today.getDate() - i);
+      const dateStr = formatDateLocal(date);
+
+      // Only include this day if the medication was actually due that day
+      if (!isDueToday(med, date)) continue;
+
+      const wasTaken = (med.history || []).includes(dateStr);
+      const isPastOrToday = dateStr <= getToday();
+
+      if (wasTaken) {
+        totalTaken++;
+        rows.push({ date: dateStr, name: med.name, time: med.time, status: 'Taken' });
+      } else if (isPastOrToday) {
+        totalMissed++;
+        rows.push({ date: dateStr, name: med.name, time: med.time, status: 'Missed' });
+      }
+      // Future due dates that haven't happened yet are simply skipped (not shown as missed)
+    }
+  });
+
+  // Sort rows by date, most recent first
+  rows.sort(function(a, b) {
+    return b.date.localeCompare(a.date);
+  });
+
+  const totalDoses = totalTaken + totalMissed;
+  const consistencyPercent = totalDoses > 0 ? Math.round((totalTaken / totalDoses) * 100) : 0;
+
+  renderReportSummary(totalTaken, totalMissed, consistencyPercent);
+  renderReportTable(rows);
+}
+
+function renderReportSummary(totalTaken, totalMissed, consistencyPercent) {
+  reportsSummary.innerHTML = `
+    <div class="summary-card">
+      <div class="summary-number">${totalTaken}</div>
+      <div class="summary-label">Taken (14 days)</div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-number">${totalMissed}</div>
+      <div class="summary-label">Missed (14 days)</div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-number">${consistencyPercent}%</div>
+      <div class="summary-label">Consistency</div>
+    </div>
+  `;
+}
+
+function renderReportTable(rows) {
+  reportsTableBody.innerHTML = '';
+
+  if (rows.length === 0) {
+    reportsTableBody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#888;">No history yet.</td></tr>';
+    return;
+  }
+
+  rows.forEach(function(row) {
+    const tr = document.createElement('tr');
+
+    const statusClass = row.status === 'Taken' ? 'status-taken' : 'status-missed';
+    const statusIcon = row.status === 'Taken' ? '✅' : '❌';
+
+    tr.innerHTML = `
+      <td>${formatDateForDisplay(row.date)}</td>
+      <td>${row.name}</td>
+      <td>${formatTime(row.time)}</td>
+      <td class="${statusClass}">${statusIcon} ${row.status}</td>
+    `;
+
+    reportsTableBody.appendChild(tr);
+  });
+}
+
+// Converts "2026-07-11" into "11 Jul 2026"
+function formatDateForDisplay(dateStr) {
+  const [year, month, day] = dateStr.split('-');
+  const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${parseInt(day)} ${monthNames[parseInt(month) - 1]} ${year}`;
 }
 
 function requestNotificationPermission() {

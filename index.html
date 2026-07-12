@@ -31,6 +31,7 @@
       <div class="header-row">
         <h1>My Medications</h1>
         <div>
+          <button id="reports-btn" title="View history report">📊</button>
           <button id="dark-mode-toggle" title="Toggle dark mode">🌙</button>
           <button id="logout-btn" title="Log out">🚪</button>
         </div>
@@ -63,6 +64,28 @@
       </form>
 
       <div id="warning-box" class="hidden"></div>
+
+      <!-- Reports screen (hidden by default) -->
+      <div id="reports-screen" class="hidden">
+        <div class="header-row">
+          <h2>📊 Medicine History Report</h2>
+          <button id="close-reports-btn">✕ Close</button>
+        </div>
+
+        <div id="reports-summary"></div>
+
+        <table id="reports-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Medicine</th>
+              <th>Time</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="reports-table-body"></tbody>
+        </table>
+      </div>
 
       <ul id="med-list"></ul>
     </div>
