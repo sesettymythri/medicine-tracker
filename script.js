@@ -241,6 +241,9 @@ async function loadUserMedications() {
   const { data: { user } } = await supabaseClient.auth.getUser();
   if (!user) return;
 
+  // Show a loading message immediately
+  medList.innerHTML = '<li style="text-align:center; border:none; color:#888;">Loading your medications...</li>';
+
   const { data, error } = await supabaseClient
     .from('medications')
     .select('*')
@@ -248,6 +251,7 @@ async function loadUserMedications() {
 
   if (error) {
     console.error('Error loading medications:', error);
+    medList.innerHTML = '<li style="text-align:center; border:none; color:#a02020;">Failed to load medications. Please refresh the page.</li>';
     return;
   }
 
