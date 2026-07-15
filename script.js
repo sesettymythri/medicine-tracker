@@ -159,18 +159,39 @@ forgotPasswordLink.addEventListener('click', async function(event) {
   }
 });
 
+// Styled password reset flow (replaces old prompt()/alert() version)
+const resetPasswordScreen = document.getElementById('reset-password-screen');
+const newPasswordInput = document.getElementById('new-password-input');
+const resetPasswordSubmitBtn = document.getElementById('reset-password-submit-btn');
+const resetPasswordError = document.getElementById('reset-password-error');
+
 supabaseClient.auth.onAuthStateChange(function(event, session) {
   if (event === 'PASSWORD_RECOVERY') {
-    const newPassword = prompt('Enter your new password:');
-    if (newPassword) {
-      supabaseClient.auth.updateUser({ password: newPassword }).then(function({ error }) {
-        if (error) {
-          alert('Error updating password: ' + error.message);
-        } else {
-          alert('Password updated successfully! You can now log in with your new password.');
-        }
-      });
-    }
+    authScreen.classList.add('hidden');
+    appScreen.classList.add('hidden');
+    resetPasswordScreen.classList.remove('hidden');
+  }
+});
+
+resetPasswordSubmitBtn.addEventListener('click', async function() {
+  const newPassword = newPasswordInput.value;
+
+  if (!newPassword || newPassword.length < 6) {
+    resetPasswordError.textContent = 'Password must be at least 6 characters.';
+    resetPasswordError.classList.remove('hidden');
+    return;
+  }
+
+  const { error } = await supabaseClient.auth.updateUser({ password: newPassword });
+
+  if (error) {
+    resetPasswordError.textContent = error.message;
+    resetPasswordError.classList.remove('hidden');
+  } else {
+    resetPasswordScreen.classList.add('hidden');
+    authScreen.classList.remove('hidden');
+    showAuthError('Password updated successfully! You can now log in.');
+    newPasswordInput.value = '';
   }
 });
 
@@ -412,7 +433,6 @@ function renderList() {
 
       listItem.appendChild(infoText);
 
-      // Only show action buttons if viewing your own data, not a patient's
       if (!currentlyViewingPatientId) {
         listItem.appendChild(takenBtn);
         listItem.appendChild(editBtn);
