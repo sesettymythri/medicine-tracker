@@ -936,7 +936,7 @@ async function loadCaregiverScreen() {
         });
 
         li.appendChild(acceptBtn);
-      } else {
+      }  else {
         li.innerHTML = `<span>Patient (accepted)</span>`;
 
         const viewBtn = document.createElement('button');
@@ -946,7 +946,19 @@ async function loadCaregiverScreen() {
           switchToPatientView(link.patient_id);
         });
 
+        const leaveBtn = document.createElement('button');
+        leaveBtn.textContent = 'Leave';
+        leaveBtn.className = 'remove-caregiver-btn';
+        leaveBtn.addEventListener('click', async function() {
+          const confirmed = confirm('Are you sure you want to stop being a caregiver for this patient?');
+          if (!confirmed) return;
+
+          await supabaseClient.from('caregiver_links').delete().eq('id', link.id);
+          loadCaregiverScreen();
+        });
+
         li.appendChild(viewBtn);
+        li.appendChild(leaveBtn);
       }
 
       patientsList.appendChild(li);
