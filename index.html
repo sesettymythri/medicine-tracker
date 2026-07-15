@@ -31,6 +31,7 @@
       <div class="header-row">
         <h1>My Medications</h1>
         <div>
+          <button id="caregiver-btn" title="Manage caregivers">👥</button>
           <button id="reports-btn" title="View history report">📊</button>
           <button id="dark-mode-toggle" title="Toggle dark mode">🌙</button>
           <button id="logout-btn" title="Log out">🚪</button>
@@ -85,6 +86,31 @@
           </thead>
           <tbody id="reports-table-body"></tbody>
         </table>
+      </div>
+
+      <!-- Caregiver management screen (hidden by default) -->
+      <div id="caregiver-screen" class="hidden">
+        <div class="header-row">
+          <h2>👥 Caregivers</h2>
+          <button id="close-caregiver-btn">✕ Close</button>
+        </div>
+
+        <h3>Invite a caregiver</h3>
+        <p style="font-size:13px; color:#666;">They'll be able to view your medications and reports, but can't make changes.</p>
+        <div class="caregiver-invite-row">
+          <input type="email" id="caregiver-email-input" placeholder="Caregiver's email">
+          <button id="invite-caregiver-btn">Invite</button>
+        </div>
+
+        <div id="caregiver-list-section">
+          <h3>Your caregivers</h3>
+          <ul id="caregiver-list"></ul>
+        </div>
+
+        <div id="patients-section">
+          <h3>Patients you care for</h3>
+          <ul id="patients-list"></ul>
+        </div>
       </div>
 
       <ul id="med-list"></ul>

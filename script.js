@@ -15,6 +15,16 @@ const reportsSummary = document.getElementById('reports-summary');
 const reportsTableBody = document.getElementById('reports-table-body');
 const medListForReports = document.getElementById('med-list');
 const medFormForReports = document.getElementById('med-form');
+
+// Caregiver elements
+const caregiverBtn = document.getElementById('caregiver-btn');
+const closeCaregiverBtn = document.getElementById('close-caregiver-btn');
+const caregiverScreen = document.getElementById('caregiver-screen');
+const caregiverEmailInput = document.getElementById('caregiver-email-input');
+const inviteCaregiverBtn = document.getElementById('invite-caregiver-btn');
+const caregiverList = document.getElementById('caregiver-list');
+const patientsList = document.getElementById('patients-list');
+
 const SUPABASE_URL = 'https://miwqeuobqfwnadydmamx.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_f1SkzmVuwotFKHnwcyiqTg_F6BkBEZG';
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -77,7 +87,6 @@ authSubmitBtn.addEventListener('click', async function() {
   }
 });
 
-// Translates common Supabase error messages into friendlier, plain-English versions
 function getFriendlyAuthError(message) {
   const lower = message.toLowerCase();
 
@@ -100,7 +109,6 @@ function getFriendlyAuthError(message) {
     return 'Too many attempts. Please wait a few minutes and try again.';
   }
 
-  // Fallback: show the original message if we don't have a friendlier version
   return message;
 }
 
@@ -118,6 +126,7 @@ function onLoginSuccess() {
 logoutBtn.addEventListener('click', async function() {
   await supabaseClient.auth.signOut();
   medications = [];
+  currentlyViewingPatientId = null;
   appScreen.classList.add('hidden');
   authScreen.classList.remove('hidden');
   authEmailInput.value = '';
@@ -150,7 +159,6 @@ forgotPasswordLink.addEventListener('click', async function(event) {
   }
 });
 
-// Detect if this page load is from a password reset email link
 supabaseClient.auth.onAuthStateChange(function(event, session) {
   if (event === 'PASSWORD_RECOVERY') {
     const newPassword = prompt('Enter your new password:');
@@ -177,7 +185,6 @@ frequencySelect.addEventListener('change', function() {
   }
 });
 
-// Apply saved dark mode preference on page load
 if (localStorage.getItem('darkMode') === 'true') {
   document.body.classList.add('dark-mode');
   darkModeToggle.textContent = '☀️';
@@ -190,10 +197,8 @@ darkModeToggle.addEventListener('click', function() {
   darkModeToggle.textContent = isDark ? '☀️' : '🌙';
 });
 
-// Medications now live in memory, loaded from Supabase
 let medications = [];
 
-// Register the service worker so it can run in the background
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js')
     .then(function(registration) {
@@ -244,17 +249,21 @@ async function checkInteractions(newDrugName, existingDrugNames) {
   return warnings;
 }
 
+// Tracks whether we're currently viewing our own data or a patient's (as a caregiver)
+let currentlyViewingPatientId = null;
+
 async function loadUserMedications() {
   const { data: { user } } = await supabaseClient.auth.getUser();
   if (!user) return;
 
-  // Show a loading message immediately
+  const targetUserId = currentlyViewingPatientId || user.id;
+
   medList.innerHTML = '<li style="text-align:center; border:none; color:#888;">Loading your medications...</li>';
 
   const { data, error } = await supabaseClient
     .from('medications')
     .select('*')
-    .eq('user_id', user.id);
+    .eq('user_id', targetUserId);
 
   if (error) {
     console.error('Error loading medications:', error);
@@ -402,9 +411,13 @@ function renderList() {
       });
 
       listItem.appendChild(infoText);
-      listItem.appendChild(takenBtn);
-      listItem.appendChild(editBtn);
-      listItem.appendChild(deleteBtn);
+
+      // Only show action buttons if viewing your own data, not a patient's
+      if (!currentlyViewingPatientId) {
+        listItem.appendChild(takenBtn);
+        listItem.appendChild(editBtn);
+        listItem.appendChild(deleteBtn);
+      }
 
       const heatmap = buildHeatmap(med.history || []);
       listItem.appendChild(heatmap);
@@ -678,6 +691,8 @@ function buildHeatmap(history) {
 
   return container;
 }
+
+// Reports
 reportsBtn.addEventListener('click', function() {
   generateReport();
   reportsScreen.classList.remove('hidden');
@@ -692,11 +707,10 @@ closeReportsBtn.addEventListener('click', function() {
   medFormForReports.classList.remove('hidden');
 });
 
-// Generates the full report: summary stats + day-by-day table
 function generateReport() {
-  const daysToShow = 14; // same window as the heatmap, for consistency
+  const daysToShow = 14;
   const today = new Date();
-  const rows = []; // will hold {date, name, time, status}
+  const rows = [];
 
   let totalTaken = 0;
   let totalMissed = 0;
@@ -707,7 +721,6 @@ function generateReport() {
       date.setDate(today.getDate() - i);
       const dateStr = formatDateLocal(date);
 
-      // Only include this day if the medication was actually due that day
       if (!isDueToday(med, date)) continue;
 
       const wasTaken = (med.history || []).includes(dateStr);
@@ -720,11 +733,9 @@ function generateReport() {
         totalMissed++;
         rows.push({ date: dateStr, name: med.name, time: med.time, status: 'Missed' });
       }
-      // Future due dates that haven't happened yet are simply skipped (not shown as missed)
     }
   });
 
-  // Sort rows by date, most recent first
   rows.sort(function(a, b) {
     return b.date.localeCompare(a.date);
   });
@@ -778,11 +789,177 @@ function renderReportTable(rows) {
   });
 }
 
-// Converts "2026-07-11" into "11 Jul 2026"
 function formatDateForDisplay(dateStr) {
   const [year, month, day] = dateStr.split('-');
   const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   return `${parseInt(day)} ${monthNames[parseInt(month) - 1]} ${year}`;
+}
+
+// Caregiver logic
+caregiverBtn.addEventListener('click', function() {
+  loadCaregiverScreen();
+  caregiverScreen.classList.remove('hidden');
+  medList.classList.add('hidden');
+  medFormForReports.classList.add('hidden');
+  warningBox.classList.add('hidden');
+});
+
+closeCaregiverBtn.addEventListener('click', function() {
+  caregiverScreen.classList.add('hidden');
+  medList.classList.remove('hidden');
+  if (!currentlyViewingPatientId) {
+    medFormForReports.classList.remove('hidden');
+  }
+});
+
+inviteCaregiverBtn.addEventListener('click', async function() {
+  const email = caregiverEmailInput.value.trim();
+  if (!email) return;
+
+  const { data: { user } } = await supabaseClient.auth.getUser();
+
+  if (email.toLowerCase() === user.email.toLowerCase()) {
+    alert("You can't invite yourself.");
+    return;
+  }
+
+  const { error } = await supabaseClient
+    .from('caregiver_links')
+    .insert({
+      patient_id: user.id,
+      caregiver_email: email.toLowerCase(),
+      status: 'pending'
+    });
+
+  if (error) {
+    alert('Error sending invite: ' + error.message);
+    return;
+  }
+
+  caregiverEmailInput.value = '';
+  loadCaregiverScreen();
+});
+
+async function loadCaregiverScreen() {
+  const { data: { user } } = await supabaseClient.auth.getUser();
+
+  const { data: myCaregivers } = await supabaseClient
+    .from('caregiver_links')
+    .select('*')
+    .eq('patient_id', user.id);
+
+  caregiverList.innerHTML = '';
+  if (!myCaregivers || myCaregivers.length === 0) {
+    caregiverList.innerHTML = '<li style="border:none; color:#888;">No caregivers invited yet.</li>';
+  } else {
+    myCaregivers.forEach(function(link) {
+      const li = document.createElement('li');
+
+      const statusClass = link.status === 'accepted' ? 'status-accepted' : 'status-pending';
+      const statusText = link.status === 'accepted' ? 'Accepted' : 'Pending';
+
+      li.innerHTML = `
+        <span>${link.caregiver_email} <span class="caregiver-status ${statusClass}">${statusText}</span></span>
+      `;
+
+      const removeBtn = document.createElement('button');
+      removeBtn.textContent = 'Remove';
+      removeBtn.className = 'remove-caregiver-btn';
+      removeBtn.addEventListener('click', async function() {
+        await supabaseClient.from('caregiver_links').delete().eq('id', link.id);
+        loadCaregiverScreen();
+      });
+
+      li.appendChild(removeBtn);
+      caregiverList.appendChild(li);
+    });
+  }
+
+  const { data: invitesForMe } = await supabaseClient
+    .from('caregiver_links')
+    .select('*')
+    .eq('caregiver_email', user.email.toLowerCase());
+
+  patientsList.innerHTML = '';
+  if (!invitesForMe || invitesForMe.length === 0) {
+    patientsList.innerHTML = '<li style="border:none; color:#888;">No one has invited you yet.</li>';
+  } else {
+    for (const link of invitesForMe) {
+      if (!link.caregiver_id) {
+        await supabaseClient
+          .from('caregiver_links')
+          .update({ caregiver_id: user.id })
+          .eq('id', link.id);
+      }
+
+      const li = document.createElement('li');
+
+      if (link.status === 'pending') {
+        li.innerHTML = `<span>Invitation from a patient</span>`;
+
+        const acceptBtn = document.createElement('button');
+        acceptBtn.textContent = 'Accept';
+        acceptBtn.className = 'accept-invite-btn';
+        acceptBtn.addEventListener('click', async function() {
+          await supabaseClient
+            .from('caregiver_links')
+            .update({ status: 'accepted', caregiver_id: user.id })
+            .eq('id', link.id);
+          loadCaregiverScreen();
+        });
+
+        li.appendChild(acceptBtn);
+      } else {
+        li.innerHTML = `<span>Patient (accepted)</span>`;
+
+        const viewBtn = document.createElement('button');
+        viewBtn.textContent = 'View';
+        viewBtn.className = 'view-patient-btn';
+        viewBtn.addEventListener('click', function() {
+          switchToPatientView(link.patient_id);
+        });
+
+        li.appendChild(viewBtn);
+      }
+
+      patientsList.appendChild(li);
+    }
+  }
+}
+
+async function switchToPatientView(patientId) {
+  currentlyViewingPatientId = patientId;
+  caregiverScreen.classList.add('hidden');
+  medList.classList.remove('hidden');
+  medFormForReports.classList.add('hidden');
+  showViewingBanner();
+  await loadUserMedications();
+}
+
+function switchToOwnView() {
+  currentlyViewingPatientId = null;
+  medFormForReports.classList.remove('hidden');
+  hideViewingBanner();
+  loadUserMedications();
+}
+
+function showViewingBanner() {
+  let banner = document.getElementById('viewing-banner');
+  if (!banner) {
+    banner = document.createElement('div');
+    banner.id = 'viewing-banner';
+    medList.parentNode.insertBefore(banner, medList);
+  }
+  banner.innerHTML = `<span>👁️ Viewing a patient's medications (read-only)</span>`;
+  const backBtn = document.createElement('button');
+  backBtn.textContent = 'Back to my medications';
+  backBtn.addEventListener('click', switchToOwnView);
+  banner.appendChild(backBtn);
+}
+
+function hideViewingBanner() {
+  const banner = document.getElementById('viewing-banner');
+  if (banner) banner.remove();
 }
 
 function requestNotificationPermission() {
