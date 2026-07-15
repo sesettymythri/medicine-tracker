@@ -17,7 +17,7 @@ This is my first real project after learning the basics of web development. Inst
 - **Scheduled reminders** — real browser notifications at the medication's scheduled time, respecting daily/weekly/monthly frequency, with **Snooze (10 min)** and **Mark as taken** actions built into the notification itself
 - **Real-time drug interaction warnings** — checks new medications against your existing list using the FDA's OpenFDA API, with a styled in-app warning (not a browser popup)
 - Dark mode, mobile-responsive design, installable as a PWA
-
+- **Caregiver sharing** — invite a caregiver to view your medications and reports (read-only), enforced via database-level security
 ## Caregiver Sharing
 Patients can invite a caregiver (by email) to view their medications and adherence reports in read-only mode — caregivers cannot add, edit, or delete a patient's data. This is enforced at the database level using Supabase Row Level Security, not just in the frontend, so the restriction holds even if there were a bug in the UI.
 **Known limitation:** invites are not currently sent by email — the invited person must log into the app themselves and check the Caregivers section to see and accept a pending invite. A production version would send an email notification via a service like Resend, triggered through a Supabase Edge Function.
