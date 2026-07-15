@@ -117,9 +117,16 @@ function showAuthError(message) {
   authError.classList.remove('hidden');
 }
 
-function onLoginSuccess() {
+async function onLoginSuccess() {
   authScreen.classList.add('hidden');
   appScreen.classList.remove('hidden');
+
+  const { data: { user } } = await supabaseClient.auth.getUser();
+  const loggedInAsEl = document.getElementById('logged-in-as');
+  if (loggedInAsEl && user) {
+    loggedInAsEl.textContent = `Logged in as ${user.email}`;
+  }
+
   loadUserMedications();
 }
 

@@ -662,4 +662,13 @@ body.dark-mode #reset-password-screen input {
 
 body.dark-mode #reset-password-screen p {
   color: #ccc;
+}#logged-in-as {
+  font-size: 12px;
+  color: #888;
+  margin-top: -12px;
+  margin-bottom: 16px;
+}
+
+body.dark-mode #logged-in-as {
+  color: #999;
 }
