@@ -672,3 +672,18 @@ body.dark-mode #reset-password-screen p {
 body.dark-mode #logged-in-as {
   color: #999;
 }
+#download-csv-btn {
+  padding: 8px 14px;
+  background-color: #4caf50;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-bottom: 14px;
+}
+
+#download-csv-btn:hover {
+  background-color: #3d8b40;
+}

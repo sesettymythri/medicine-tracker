@@ -42,10 +42,10 @@
       <div class="header-row">
         <h1>My Medications</h1>
         <div>
-          <button id="caregiver-btn" title="Manage caregivers">👥</button>
-          <button id="reports-btn" title="View history report">📊</button>
-          <button id="dark-mode-toggle" title="Toggle dark mode">🌙</button>
-          <button id="logout-btn" title="Log out">🚪</button>
+          <button id="caregiver-btn" title="Manage caregivers"aria-label="Manage caregivers">👥</button>
+          <button id="reports-btn" title="View history report"aria-label="View history report">📊</button>
+          <button id="dark-mode-toggle" title="Toggle dark mode"aria-label="Toggle dark mode">🌙</button>
+          <button id="logout-btn" title="Log out"aria-label="Log out">🚪</button>
         </div>
       </div>
       <p id="logged-in-as"></p>
@@ -86,6 +86,7 @@
         </div>
 
         <div id="reports-summary"></div>
+        <button id="download-csv-btn">⬇️ Download as CSV</button>
 
         <table id="reports-table">
           <thead>

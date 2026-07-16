@@ -15,6 +15,7 @@ const reportsSummary = document.getElementById('reports-summary');
 const reportsTableBody = document.getElementById('reports-table-body');
 const medListForReports = document.getElementById('med-list');
 const medFormForReports = document.getElementById('med-form');
+const downloadCsvBtn = document.getElementById('download-csv-btn');
 
 // Caregiver elements
 const caregiverBtn = document.getElementById('caregiver-btn');
@@ -166,7 +167,7 @@ forgotPasswordLink.addEventListener('click', async function(event) {
   }
 });
 
-// Styled password reset flow (replaces old prompt()/alert() version)
+// Styled password reset flow
 const resetPasswordScreen = document.getElementById('reset-password-screen');
 const newPasswordInput = document.getElementById('new-password-input');
 const resetPasswordSubmitBtn = document.getElementById('reset-password-submit-btn');
@@ -427,6 +428,7 @@ function renderList() {
       const editBtn = document.createElement('button');
       editBtn.textContent = '✏️';
       editBtn.title = 'Edit this medication';
+      editBtn.setAttribute('aria-label', 'Edit this medication');
       editBtn.addEventListener('click', function() {
         toggleEdit(index);
       });
@@ -434,6 +436,7 @@ function renderList() {
       const deleteBtn = document.createElement('button');
       deleteBtn.textContent = '🗑️';
       deleteBtn.title = 'Delete this medication';
+      deleteBtn.setAttribute('aria-label', 'Delete this medication');
       deleteBtn.addEventListener('click', function() {
         deleteMedication(index);
       });
@@ -720,6 +723,8 @@ function buildHeatmap(history) {
 }
 
 // Reports
+let currentReportRows = []; // stores the latest report data for CSV export
+
 reportsBtn.addEventListener('click', function() {
   generateReport();
   reportsScreen.classList.remove('hidden');
@@ -770,6 +775,7 @@ function generateReport() {
   const totalDoses = totalTaken + totalMissed;
   const consistencyPercent = totalDoses > 0 ? Math.round((totalTaken / totalDoses) * 100) : 0;
 
+  currentReportRows = rows; // save for CSV export
   renderReportSummary(totalTaken, totalMissed, consistencyPercent);
   renderReportTable(rows);
 }
@@ -821,6 +827,32 @@ function formatDateForDisplay(dateStr) {
   const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   return `${parseInt(day)} ${monthNames[parseInt(month) - 1]} ${year}`;
 }
+
+// CSV export
+downloadCsvBtn.addEventListener('click', function() {
+  if (currentReportRows.length === 0) {
+    alert('No data to export yet.');
+    return;
+  }
+
+  let csvContent = 'Date,Medicine,Time,Status\n';
+
+  currentReportRows.forEach(function(row) {
+    const dateStr = formatDateForDisplay(row.date);
+    const timeStr = formatTime(row.time);
+    csvContent += `"${dateStr}","${row.name}","${timeStr}","${row.status}"\n`;
+  });
+
+  const blob = new Blob([csvContent], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `medication-report-${getToday()}.csv`;
+  link.click();
+
+  URL.revokeObjectURL(url);
+});
 
 // Caregiver logic
 caregiverBtn.addEventListener('click', function() {
@@ -936,7 +968,7 @@ async function loadCaregiverScreen() {
         });
 
         li.appendChild(acceptBtn);
-      }  else {
+      } else {
         li.innerHTML = `<span>Patient (accepted)</span>`;
 
         const viewBtn = document.createElement('button');
