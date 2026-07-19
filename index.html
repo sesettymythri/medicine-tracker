@@ -42,10 +42,11 @@
       <div class="header-row">
         <h1>My Medications</h1>
         <div>
-          <button id="caregiver-btn" title="Manage caregivers"aria-label="Manage caregivers">👥</button>
-          <button id="reports-btn" title="View history report"aria-label="View history report">📊</button>
-          <button id="dark-mode-toggle" title="Toggle dark mode"aria-label="Toggle dark mode">🌙</button>
-          <button id="logout-btn" title="Log out"aria-label="Log out">🚪</button>
+          <button id="staff-btn" title="Manage hospital staff" aria-label="Manage hospital staff">🏥</button>
+          <button id="caregiver-btn" title="Manage caregivers" aria-label="Manage caregivers">👥</button>
+          <button id="reports-btn" title="View history report" aria-label="View history report">📊</button>
+          <button id="dark-mode-toggle" title="Toggle dark mode" aria-label="Toggle dark mode">🌙</button>
+          <button id="logout-btn" title="Log out" aria-label="Log out">🚪</button>
         </div>
       </div>
       <p id="logged-in-as"></p>
@@ -123,6 +124,69 @@
         <div id="patients-section">
           <h3>Patients you care for</h3>
           <ul id="patients-list"></ul>
+        </div>
+      </div>
+
+      <!-- Hospital Staff screen (hidden by default) -->
+      <div id="staff-screen" class="hidden">
+        <div class="header-row">
+          <h2>🏥 Hospital Staff</h2>
+          <button id="close-staff-btn">✕ Close</button>
+        </div>
+
+        <h3>Link a hospital staff member</h3>
+        <p style="font-size:13px; color:#666;">They'll be able to prescribe medications for you, which you can approve or decline.</p>
+        <div class="caregiver-invite-row">
+          <input type="email" id="staff-email-input" placeholder="Staff member's email">
+          <button id="invite-staff-btn">Invite</button>
+        </div>
+
+        <div id="my-staff-section">
+          <h3>My hospital staff</h3>
+          <ul id="my-staff-list"></ul>
+        </div>
+
+        <div id="my-patients-section">
+          <h3>Patients linked to me</h3>
+          <ul id="staff-patients-list"></ul>
+        </div>
+
+        <div id="pending-prescriptions-section">
+          <h3>Pending prescriptions for you</h3>
+          <ul id="pending-prescriptions-list"></ul>
+        </div>
+
+        <!-- Prescribe form, shown when staff selects a patient to prescribe to -->
+        <div id="prescribe-form-section" class="hidden">
+          <h3>Prescribe medication</h3>
+          <p id="prescribing-for-label" style="font-size:13px; color:#666;"></p>
+
+          <input type="text" id="prescribe-name" placeholder="Medication name" required>
+          <input type="text" id="prescribe-dosage" placeholder="Dosage (e.g. 500mg)" required>
+          <input type="time" id="prescribe-time" required>
+
+          <select id="prescribe-frequency">
+            <option value="daily">Daily</option>
+            <option value="weekly">Weekly</option>
+            <option value="monthly">Monthly</option>
+          </select>
+
+          <select id="prescribe-day-of-week" class="hidden">
+            <option value="0">Sunday</option>
+            <option value="1">Monday</option>
+            <option value="2">Tuesday</option>
+            <option value="3">Wednesday</option>
+            <option value="4">Thursday</option>
+            <option value="5">Friday</option>
+            <option value="6">Saturday</option>
+          </select>
+
+          <input type="number" id="prescribe-day-of-month" class="hidden" min="1" max="31" placeholder="Day of month (1-31)">
+
+          <textarea id="prescribe-notes" placeholder="Notes (e.g. take with food)" rows="2"></textarea>
+
+          <button id="submit-prescription-btn">Send Prescription</button>
+          <button id="cancel-prescription-btn">Cancel</button>
         </div>
       </div>
 

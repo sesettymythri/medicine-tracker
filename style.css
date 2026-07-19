@@ -687,3 +687,145 @@ body.dark-mode #logged-in-as {
 #download-csv-btn:hover {
   background-color: #3d8b40;
 }
+/* Hospital Staff screen */
+#staff-screen h3 {
+  font-size: 15px;
+  margin-top: 20px;
+  margin-bottom: 8px;
+}
+
+#staff-btn {
+  background: none;
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+body.dark-mode #staff-btn {
+  border-color: #555;
+  color: #f0f0f0;
+}
+
+#my-staff-list,
+#staff-patients-list,
+#pending-prescriptions-list {
+  list-style: none;
+}
+
+#my-staff-list li,
+#staff-patients-list li,
+#pending-prescriptions-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid #eaecef;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+body.dark-mode #my-staff-list li,
+body.dark-mode #staff-patients-list li,
+body.dark-mode #pending-prescriptions-list li {
+  border-color: #444;
+}
+
+.prescribe-btn {
+  padding: 5px 10px;
+  font-size: 12px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  background-color: #4f7cff;
+  color: white;
+}
+
+.decline-btn {
+  padding: 5px 10px;
+  font-size: 12px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  background-color: #fee;
+  color: #a02020;
+  margin-left: 6px;
+}
+
+/* Prescribe form */
+#prescribe-form-section {
+  background-color: #f4f6f8;
+  border-radius: 10px;
+  padding: 16px;
+  margin-top: 16px;
+}
+
+#prescribe-form-section input,
+#prescribe-form-section select,
+#prescribe-form-section textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+  font-size: 14px;
+  margin-bottom: 10px;
+  font-family: inherit;
+}
+
+#submit-prescription-btn {
+  padding: 10px 16px;
+  background-color: #4f7cff;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-right: 8px;
+}
+
+#cancel-prescription-btn {
+  padding: 10px 16px;
+  background-color: #e5e5e5;
+  color: #333;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+body.dark-mode #prescribe-form-section {
+  background-color: #333;
+}
+
+body.dark-mode #prescribe-form-section input,
+body.dark-mode #prescribe-form-section select,
+body.dark-mode #prescribe-form-section textarea {
+  background-color: #3a3a3a;
+  border-color: #555;
+  color: #f0f0f0;
+}
+
+body.dark-mode #cancel-prescription-btn {
+  background-color: #555;
+  color: #f0f0f0;
+}
+
+.prescription-item-details {
+  flex: 1;
+}
+
+.prescription-item-details .rx-notes {
+  font-size: 12px;
+  color: #888;
+  margin-top: 2px;
+}
+
+body.dark-mode .prescription-item-details .rx-notes {
+  color: #aaa;
+}

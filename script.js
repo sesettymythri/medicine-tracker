@@ -17,7 +17,6 @@ const medListForReports = document.getElementById('med-list');
 const medFormForReports = document.getElementById('med-form');
 const downloadCsvBtn = document.getElementById('download-csv-btn');
 
-// Caregiver elements
 const caregiverBtn = document.getElementById('caregiver-btn');
 const closeCaregiverBtn = document.getElementById('close-caregiver-btn');
 const caregiverScreen = document.getElementById('caregiver-screen');
@@ -30,7 +29,6 @@ const SUPABASE_URL = 'https://miwqeuobqfwnadydmamx.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_f1SkzmVuwotFKHnwcyiqTg_F6BkBEZG';
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// Grab auth screen elements
 const authScreen = document.getElementById('auth-screen');
 const appScreen = document.getElementById('app-screen');
 const authEmailInput = document.getElementById('auth-email');
@@ -41,6 +39,27 @@ let authToggleLink = document.getElementById('auth-toggle-link');
 const authToggleText = document.getElementById('auth-toggle-text');
 const authError = document.getElementById('auth-error');
 const logoutBtn = document.getElementById('logout-btn');
+
+// Hospital Staff elements
+const staffBtn = document.getElementById('staff-btn');
+const closeStaffBtn = document.getElementById('close-staff-btn');
+const staffScreen = document.getElementById('staff-screen');
+const staffEmailInput = document.getElementById('staff-email-input');
+const inviteStaffBtn = document.getElementById('invite-staff-btn');
+const myStaffList = document.getElementById('my-staff-list');
+const staffPatientsList = document.getElementById('staff-patients-list');
+const pendingPrescriptionsList = document.getElementById('pending-prescriptions-list');
+const prescribeFormSection = document.getElementById('prescribe-form-section');
+const prescribingForLabel = document.getElementById('prescribing-for-label');
+const prescribeName = document.getElementById('prescribe-name');
+const prescribeDosage = document.getElementById('prescribe-dosage');
+const prescribeTime = document.getElementById('prescribe-time');
+const prescribeFrequency = document.getElementById('prescribe-frequency');
+const prescribeDayOfWeek = document.getElementById('prescribe-day-of-week');
+const prescribeDayOfMonth = document.getElementById('prescribe-day-of-month');
+const prescribeNotes = document.getElementById('prescribe-notes');
+const submitPrescriptionBtn = document.getElementById('submit-prescription-btn');
+const cancelPrescriptionBtn = document.getElementById('cancel-prescription-btn');
 
 let isSignUpMode = false;
 
@@ -147,7 +166,6 @@ supabaseClient.auth.getSession().then(function({ data: { session } }) {
   }
 });
 
-// Forgot password flow
 const forgotPasswordLink = document.getElementById('forgot-password-link');
 
 forgotPasswordLink.addEventListener('click', async function(event) {
@@ -167,7 +185,6 @@ forgotPasswordLink.addEventListener('click', async function(event) {
   }
 });
 
-// Styled password reset flow
 const resetPasswordScreen = document.getElementById('reset-password-screen');
 const newPasswordInput = document.getElementById('new-password-input');
 const resetPasswordSubmitBtn = document.getElementById('reset-password-submit-btn');
@@ -278,7 +295,6 @@ async function checkInteractions(newDrugName, existingDrugNames) {
   return warnings;
 }
 
-// Tracks whether we're currently viewing our own data or a patient's (as a caregiver)
 let currentlyViewingPatientId = null;
 
 async function loadUserMedications() {
@@ -722,8 +738,7 @@ function buildHeatmap(history) {
   return container;
 }
 
-// Reports
-let currentReportRows = []; // stores the latest report data for CSV export
+let currentReportRows = [];
 
 reportsBtn.addEventListener('click', function() {
   generateReport();
@@ -775,7 +790,7 @@ function generateReport() {
   const totalDoses = totalTaken + totalMissed;
   const consistencyPercent = totalDoses > 0 ? Math.round((totalTaken / totalDoses) * 100) : 0;
 
-  currentReportRows = rows; // save for CSV export
+  currentReportRows = rows;
   renderReportSummary(totalTaken, totalMissed, consistencyPercent);
   renderReportTable(rows);
 }
@@ -828,7 +843,6 @@ function formatDateForDisplay(dateStr) {
   return `${parseInt(day)} ${monthNames[parseInt(month) - 1]} ${year}`;
 }
 
-// CSV export
 downloadCsvBtn.addEventListener('click', function() {
   if (currentReportRows.length === 0) {
     alert('No data to export yet.');
@@ -854,7 +868,6 @@ downloadCsvBtn.addEventListener('click', function() {
   URL.revokeObjectURL(url);
 });
 
-// Caregiver logic
 caregiverBtn.addEventListener('click', function() {
   loadCaregiverScreen();
   caregiverScreen.classList.remove('hidden');
@@ -1032,6 +1045,294 @@ function hideViewingBanner() {
   const banner = document.getElementById('viewing-banner');
   if (banner) banner.remove();
 }
+
+// ===== Hospital Staff / Prescriptions logic =====
+let currentlyPrescribingToPatientId = null;
+
+staffBtn.addEventListener('click', function() {
+  loadStaffScreen();
+  staffScreen.classList.remove('hidden');
+  medList.classList.add('hidden');
+  medFormForReports.classList.add('hidden');
+  warningBox.classList.add('hidden');
+});
+
+closeStaffBtn.addEventListener('click', function() {
+  staffScreen.classList.add('hidden');
+  medList.classList.remove('hidden');
+  if (!currentlyViewingPatientId) {
+    medFormForReports.classList.remove('hidden');
+  }
+  prescribeFormSection.classList.add('hidden');
+});
+
+inviteStaffBtn.addEventListener('click', async function() {
+  const email = staffEmailInput.value.trim();
+  if (!email) return;
+
+  const { data: { user } } = await supabaseClient.auth.getUser();
+
+  if (email.toLowerCase() === user.email.toLowerCase()) {
+    alert("You can't invite yourself.");
+    return;
+  }
+
+  const { error } = await supabaseClient
+    .from('staff_links')
+    .insert({
+      patient_id: user.id,
+      staff_email: email.toLowerCase(),
+      status: 'pending'
+    });
+
+  if (error) {
+    alert('Error sending invite: ' + error.message);
+    return;
+  }
+
+  staffEmailInput.value = '';
+  loadStaffScreen();
+});
+
+async function loadStaffScreen() {
+  const { data: { user } } = await supabaseClient.auth.getUser();
+
+  await loadMyStaff(user);
+  await loadStaffPatients(user);
+  await loadPendingPrescriptions(user);
+}
+
+async function loadMyStaff(user) {
+  const { data: myStaff } = await supabaseClient
+    .from('staff_links')
+    .select('*')
+    .eq('patient_id', user.id);
+
+  myStaffList.innerHTML = '';
+  if (!myStaff || myStaff.length === 0) {
+    myStaffList.innerHTML = '<li style="border:none; color:#888;">No hospital staff linked yet.</li>';
+    return;
+  }
+
+  myStaff.forEach(function(link) {
+    const li = document.createElement('li');
+
+    const statusClass = link.status === 'accepted' ? 'status-accepted' : 'status-pending';
+    const statusText = link.status === 'accepted' ? 'Accepted' : 'Pending';
+
+    li.innerHTML = `<span>${link.staff_email} <span class="caregiver-status ${statusClass}">${statusText}</span></span>`;
+
+    const removeBtn = document.createElement('button');
+    removeBtn.textContent = 'Remove';
+    removeBtn.className = 'remove-caregiver-btn';
+    removeBtn.addEventListener('click', async function() {
+      await supabaseClient.from('staff_links').delete().eq('id', link.id);
+      loadStaffScreen();
+    });
+
+    li.appendChild(removeBtn);
+    myStaffList.appendChild(li);
+  });
+}
+
+async function loadStaffPatients(user) {
+  const { data: invitesForMe } = await supabaseClient
+    .from('staff_links')
+    .select('*')
+    .eq('staff_email', user.email.toLowerCase());
+
+  staffPatientsList.innerHTML = '';
+  if (!invitesForMe || invitesForMe.length === 0) {
+    staffPatientsList.innerHTML = '<li style="border:none; color:#888;">No patients have linked with you yet.</li>';
+    return;
+  }
+
+  for (const link of invitesForMe) {
+    if (!link.staff_id) {
+      await supabaseClient
+        .from('staff_links')
+        .update({ staff_id: user.id })
+        .eq('id', link.id);
+    }
+
+    const li = document.createElement('li');
+
+    if (link.status === 'pending') {
+      li.innerHTML = `<span>Invitation from a patient</span>`;
+
+      const acceptBtn = document.createElement('button');
+      acceptBtn.textContent = 'Accept';
+      acceptBtn.className = 'accept-invite-btn';
+      acceptBtn.addEventListener('click', async function() {
+        await supabaseClient
+          .from('staff_links')
+          .update({ status: 'accepted', staff_id: user.id })
+          .eq('id', link.id);
+        loadStaffScreen();
+      });
+
+      li.appendChild(acceptBtn);
+    } else {
+      li.innerHTML = `<span>Patient (linked)</span>`;
+
+      const prescribeBtn = document.createElement('button');
+      prescribeBtn.textContent = 'Prescribe';
+      prescribeBtn.className = 'prescribe-btn';
+      prescribeBtn.addEventListener('click', function() {
+        openPrescribeForm(link.patient_id);
+      });
+
+      li.appendChild(prescribeBtn);
+    }
+
+    staffPatientsList.appendChild(li);
+  }
+}
+
+async function loadPendingPrescriptions(user) {
+  const { data: prescriptions } = await supabaseClient
+    .from('prescriptions')
+    .select('*')
+    .eq('patient_id', user.id)
+    .eq('status', 'pending');
+
+  pendingPrescriptionsList.innerHTML = '';
+  if (!prescriptions || prescriptions.length === 0) {
+    pendingPrescriptionsList.innerHTML = '<li style="border:none; color:#888;">No pending prescriptions.</li>';
+    return;
+  }
+
+  prescriptions.forEach(function(rx) {
+    const li = document.createElement('li');
+
+    const details = document.createElement('div');
+    details.className = 'prescription-item-details';
+    details.innerHTML = `
+      <div>${rx.name} — ${rx.dosage} — ⏰ ${formatTime(rx.time)}</div>
+      ${rx.notes ? `<div class="rx-notes">${rx.notes}</div>` : ''}
+    `;
+
+    const approveBtn = document.createElement('button');
+    approveBtn.textContent = 'Approve';
+    approveBtn.className = 'accept-invite-btn';
+    approveBtn.addEventListener('click', function() {
+      approvePrescription(rx);
+    });
+
+    const declineBtn = document.createElement('button');
+    declineBtn.textContent = 'Decline';
+    declineBtn.className = 'decline-btn';
+    declineBtn.addEventListener('click', async function() {
+      await supabaseClient.from('prescriptions').update({ status: 'declined' }).eq('id', rx.id);
+      loadStaffScreen();
+    });
+
+    li.appendChild(details);
+    li.appendChild(approveBtn);
+    li.appendChild(declineBtn);
+    pendingPrescriptionsList.appendChild(li);
+  });
+}
+
+async function approvePrescription(rx) {
+  const { data: { user } } = await supabaseClient.auth.getUser();
+
+  const { error: insertError } = await supabaseClient
+    .from('medications')
+    .insert({
+      user_id: user.id,
+      name: rx.name,
+      dosage: rx.dosage,
+      time: rx.time,
+      frequency: rx.frequency,
+      day_of_week: rx.day_of_week,
+      day_of_month: rx.day_of_month,
+      streak: 0,
+      last_taken: null,
+      history: []
+    });
+
+  if (insertError) {
+    alert('Error approving prescription: ' + insertError.message);
+    return;
+  }
+
+  await supabaseClient.from('prescriptions').update({ status: 'approved' }).eq('id', rx.id);
+
+  loadStaffScreen();
+  loadUserMedications();
+}
+
+function openPrescribeForm(patientId) {
+  currentlyPrescribingToPatientId = patientId;
+  prescribingForLabel.textContent = `Prescribing for patient`;
+  prescribeFormSection.classList.remove('hidden');
+}
+
+cancelPrescriptionBtn.addEventListener('click', function() {
+  prescribeFormSection.classList.add('hidden');
+  currentlyPrescribingToPatientId = null;
+});
+
+prescribeFrequency.addEventListener('change', function() {
+  prescribeDayOfWeek.classList.add('hidden');
+  prescribeDayOfMonth.classList.add('hidden');
+
+  if (prescribeFrequency.value === 'weekly') {
+    prescribeDayOfWeek.classList.remove('hidden');
+  } else if (prescribeFrequency.value === 'monthly') {
+    prescribeDayOfMonth.classList.remove('hidden');
+  }
+});
+
+submitPrescriptionBtn.addEventListener('click', async function() {
+  const name = prescribeName.value.trim();
+  const dosage = prescribeDosage.value.trim();
+  const time = prescribeTime.value;
+  const frequency = prescribeFrequency.value;
+  const dayOfWeek = prescribeDayOfWeek.value;
+  const dayOfMonth = prescribeDayOfMonth.value;
+  const notes = prescribeNotes.value.trim();
+
+  if (!name || !dosage || !time) {
+    alert('Please fill in medication name, dosage, and time.');
+    return;
+  }
+
+  const { data: { user } } = await supabaseClient.auth.getUser();
+
+  const { error } = await supabaseClient
+    .from('prescriptions')
+    .insert({
+      patient_id: currentlyPrescribingToPatientId,
+      staff_id: user.id,
+      name: name,
+      dosage: dosage,
+      time: time,
+      frequency: frequency,
+      day_of_week: frequency === 'weekly' ? parseInt(dayOfWeek) : null,
+      day_of_month: frequency === 'monthly' ? parseInt(dayOfMonth) : null,
+      notes: notes,
+      status: 'pending'
+    });
+
+  if (error) {
+    alert('Error sending prescription: ' + error.message);
+    return;
+  }
+
+  alert('Prescription sent successfully!');
+
+  prescribeName.value = '';
+  prescribeDosage.value = '';
+  prescribeTime.value = '';
+  prescribeFrequency.value = 'daily';
+  prescribeDayOfWeek.classList.add('hidden');
+  prescribeDayOfMonth.classList.add('hidden');
+  prescribeNotes.value = '';
+  prescribeFormSection.classList.add('hidden');
+  currentlyPrescribingToPatientId = null;
+});
 
 function requestNotificationPermission() {
   if ('Notification' in window && Notification.permission === 'default') {
