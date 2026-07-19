@@ -328,6 +328,7 @@ async function loadUserMedications() {
       streak: row.streak,
       lastTaken: row.last_taken,
       history: row.history || [],
+      fromPrescription: row.from_prescription || false,
       snoozeUntil: null
     };
   });
@@ -431,7 +432,8 @@ function renderList() {
 
     } else {
       const infoText = document.createElement('span');
-      infoText.textContent = `${med.name} — ${med.dosage} — ⏰ ${formatTime(med.time)} | Streak: ${med.streak} 🔥`;
+      const rxBadge = med.fromPrescription ? '🏥 ' : '';
+      infoText.textContent = `${rxBadge}${med.name} — ${med.dosage} — ⏰ ${formatTime(med.time)} | Streak: ${med.streak} 🔥`;
 
       const takenBtn = document.createElement('button');
       const takenToday = med.lastTaken === getToday();
@@ -691,6 +693,7 @@ async function addMedication(medName, medDosage, medTime, medFrequency, medDayOf
     streak: data.streak,
     lastTaken: data.last_taken,
     history: data.history || [],
+    fromPrescription: false,
     snoozeUntil: null
   });
 
@@ -1190,47 +1193,76 @@ async function loadStaffPatients(user) {
 }
 
 async function loadPendingPrescriptions(user) {
-  const { data: prescriptions } = await supabaseClient
+  const { data: allPrescriptions } = await supabaseClient
     .from('prescriptions')
     .select('*')
     .eq('patient_id', user.id)
-    .eq('status', 'pending');
+    .order('id', { ascending: false });
+
+  const prescriptions = (allPrescriptions || []).filter(rx => rx.status === 'pending');
+  const history = (allPrescriptions || []).filter(rx => rx.status !== 'pending');
 
   pendingPrescriptionsList.innerHTML = '';
-  if (!prescriptions || prescriptions.length === 0) {
+  if (prescriptions.length === 0) {
     pendingPrescriptionsList.innerHTML = '<li style="border:none; color:#888;">No pending prescriptions.</li>';
+  } else {
+    prescriptions.forEach(function(rx) {
+      const li = document.createElement('li');
+
+      const details = document.createElement('div');
+      details.className = 'prescription-item-details';
+      details.innerHTML = `
+        <div>${rx.name} — ${rx.dosage} — ⏰ ${formatTime(rx.time)}</div>
+        ${rx.notes ? `<div class="rx-notes">${rx.notes}</div>` : ''}
+      `;
+
+      const approveBtn = document.createElement('button');
+      approveBtn.textContent = 'Approve';
+      approveBtn.className = 'accept-invite-btn';
+      approveBtn.addEventListener('click', function() {
+        approvePrescription(rx);
+      });
+
+      const declineBtn = document.createElement('button');
+      declineBtn.textContent = 'Decline';
+      declineBtn.className = 'decline-btn';
+      declineBtn.addEventListener('click', async function() {
+        await supabaseClient.from('prescriptions').update({ status: 'declined' }).eq('id', rx.id);
+        loadStaffScreen();
+      });
+
+      li.appendChild(details);
+      li.appendChild(approveBtn);
+      li.appendChild(declineBtn);
+      pendingPrescriptionsList.appendChild(li);
+    });
+  }
+
+  renderPrescriptionHistory(history);
+}
+
+function renderPrescriptionHistory(history) {
+  let historySection = document.getElementById('prescription-history-section');
+  if (!historySection) {
+    historySection = document.createElement('div');
+    historySection.id = 'prescription-history-section';
+    historySection.innerHTML = '<h3>Prescription history</h3><ul id="prescription-history-list"></ul>';
+    pendingPrescriptionsList.parentNode.appendChild(historySection);
+  }
+
+  const historyList = document.getElementById('prescription-history-list');
+  historyList.innerHTML = '';
+
+  if (history.length === 0) {
+    historyList.innerHTML = '<li style="border:none; color:#888;">No history yet.</li>';
     return;
   }
 
-  prescriptions.forEach(function(rx) {
+  history.forEach(function(rx) {
     const li = document.createElement('li');
-
-    const details = document.createElement('div');
-    details.className = 'prescription-item-details';
-    details.innerHTML = `
-      <div>${rx.name} — ${rx.dosage} — ⏰ ${formatTime(rx.time)}</div>
-      ${rx.notes ? `<div class="rx-notes">${rx.notes}</div>` : ''}
-    `;
-
-    const approveBtn = document.createElement('button');
-    approveBtn.textContent = 'Approve';
-    approveBtn.className = 'accept-invite-btn';
-    approveBtn.addEventListener('click', function() {
-      approvePrescription(rx);
-    });
-
-    const declineBtn = document.createElement('button');
-    declineBtn.textContent = 'Decline';
-    declineBtn.className = 'decline-btn';
-    declineBtn.addEventListener('click', async function() {
-      await supabaseClient.from('prescriptions').update({ status: 'declined' }).eq('id', rx.id);
-      loadStaffScreen();
-    });
-
-    li.appendChild(details);
-    li.appendChild(approveBtn);
-    li.appendChild(declineBtn);
-    pendingPrescriptionsList.appendChild(li);
+    const statusClass = rx.status === 'approved' ? 'status-accepted' : 'status-pending';
+    li.innerHTML = `<span>${rx.name} — ${rx.dosage} <span class="caregiver-status ${statusClass}">${rx.status}</span></span>`;
+    historyList.appendChild(li);
   });
 }
 
@@ -1249,7 +1281,8 @@ async function approvePrescription(rx) {
       day_of_month: rx.day_of_month,
       streak: 0,
       last_taken: null,
-      history: []
+      history: [],
+      from_prescription: true
     });
 
   if (insertError) {
