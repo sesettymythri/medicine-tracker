@@ -21,6 +21,7 @@ This is my first real project after learning the basics of web development. Inst
 ## Caregiver Sharing
 Patients can invite a caregiver (by email) to view their medications and adherence reports in read-only mode — caregivers cannot add, edit, or delete a patient's data. This is enforced at the database level using Supabase Row Level Security, not just in the frontend, so the restriction holds even if there were a bug in the UI.
 **Known limitation:** invites are not currently sent by email — the invited person must log into the app themselves and check the Caregivers section to see and accept a pending invite. A production version would send an email notification via a service like Resend, triggered through a Supabase Edge Function.
+- **Hospital Staff / Prescriptions** — patients can link with hospital staff, who can prescribe medications; patients approve or decline before it becomes part of their active tracker (with a 🏥 badge distinguishing prescribed vs self-added meds), enforced via database-level security
 
 ## Tech Stack
 
